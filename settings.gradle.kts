@@ -1,1 +1,1 @@
-rootProject.name = "intellj-plugin-test"
+rootProject.name = "intellij-swift-format"

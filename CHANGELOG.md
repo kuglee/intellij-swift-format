@@ -1,7 +1,8 @@
-<!-- Keep a Changelog guide -> https://keepachangelog.com -->
-
-# intellj-plugin-test Changelog
+# intellij-swift-format Changelog
 
 ## [Unreleased]
+
 ### Added
-- Initial scaffold created from [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template)
+
+- Initial version based on Keith Lazuka's [intellij-elm](https://github.com/klazuka/intellij-elm) and Google
+  Inc.'s [google-java-format](https://github.com/google/google-java-format) plugins.
