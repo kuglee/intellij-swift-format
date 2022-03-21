@@ -124,7 +124,7 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
     val settings = SwiftFormatSettings.getInstance(project)
     val formatter = SwiftFormatCLI(swiftFormatExecutablePath = Path.of(settings.swiftFormatPath))
 
-    performReplacements(document, FormatterUtil.getReplacements(formatter, document))
+    performReplacements(document, FormatterUtil.getReplacements(formatter, document, project))
   }
 
   private fun performReplacements(document: Document, formattedText: String?) {

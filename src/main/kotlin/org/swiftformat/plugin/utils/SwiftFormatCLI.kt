@@ -12,7 +12,9 @@ import com.intellij.execution.process.ProcessNotCreatedException
 import com.intellij.execution.process.ProcessOutput
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.project.Project
 import java.nio.file.Path
+import org.swiftformat.plugin.swiftFormatTool
 import org.swiftformat.plugin.utils.openapiext.GeneralCommandLine
 import org.swiftformat.plugin.utils.openapiext.execute
 import org.swiftformat.plugin.utils.openapiext.isNotSuccess
@@ -20,12 +22,12 @@ import org.swiftformat.plugin.utils.openapiext.isNotSuccess
 /** Interact with external `swift-format` process. */
 class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
 
-  private fun getFormattedContentOfDocument(document: Document): ProcessOutput {
+  private fun getFormattedContentOfDocument(document: Document, project: Project): ProcessOutput {
     val arguments = listOf("format")
 
     return GeneralCommandLine(swiftFormatExecutablePath)
         .withParameters(arguments)
-        .execute(document.text)
+        .execute(swiftFormatTool, project, stdIn = document.text)
   }
 
   sealed class SwiftFormatResult(val msg: String, val cause: Throwable? = null) {
@@ -38,12 +40,12 @@ class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
         SwiftFormatResult(msg ?: "Something went wrong running swift-format", cause)
   }
 
-  fun formatDocumentAndSetText(document: Document): SwiftFormatResult {
+  fun formatDocumentAndSetText(project: Project, document: Document): SwiftFormatResult {
     val processOutput =
         try {
           ProgressManager.getInstance()
               .runProcessWithProgressSynchronously<ProcessOutput, ExecutionException>(
-                  { getFormattedContentOfDocument(document) },
+                  { getFormattedContentOfDocument(document, project) },
                   "Running swift-format on current file...",
                   true,
                   null)
