@@ -21,7 +21,27 @@ group = properties("pluginGroup")
 version = properties("pluginVersion")
 
 // Configure project's dependencies
-repositories { mavenCentral() }
+repositories {
+  mavenCentral()
+
+  maven(
+      "https://cache-redirector.jetbrains.com/maven.pkg.jetbrains.space/kotlin/p/kotlin/kotlin-ide-plugin-dependencies")
+  maven("https://www.jetbrains.com/intellij-repository/releases")
+  maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
+  maven("https://cache-redirector.jetbrains.com/download.jetbrains.com/teamcity-repository")
+  maven(
+      "https://cache-redirector.jetbrains.com/packages.jetbrains.team/maven/p/grazi/grazie-platform-public")
+  maven("https://cache-redirector.jetbrains.com/download-pgp-verifier")
+}
+
+dependencies {
+  testImplementation(kotlin("stdlib-jdk8"))
+  testImplementation("org.jetbrains.teamcity:serviceMessages:2019.1.4")
+  testImplementation("com.jetbrains.intellij.platform:test-framework:213.7172.26") {
+    exclude("org.slf4j", "slf4j-log4j12")
+  }
+  testRuntimeOnly(kotlin("reflect"))
+}
 
 // Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin
 intellij {
@@ -124,6 +144,8 @@ tasks {
   }
 
   instrumentCode { compilerVersion.set(properties("platformVersion")) }
+
+  instrumentTestCode { compilerVersion.set(properties("platformVersion")) }
 
   runIde { ideDir.set(File(properties("localPath"))) }
 
