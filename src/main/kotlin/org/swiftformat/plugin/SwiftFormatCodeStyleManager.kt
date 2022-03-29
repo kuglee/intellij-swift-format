@@ -28,6 +28,7 @@ import com.intellij.psi.codeStyle.ChangedRangesInfo
 import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.psi.impl.CheckUtil
 import com.intellij.util.IncorrectOperationException
+import com.jetbrains.swift.lang.parser.SwiftFileType
 import java.nio.file.Path
 import java.util.*
 import org.swiftformat.plugin.utils.SwiftFormatCLI
@@ -96,8 +97,8 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
 
   /** Return whether this formatter can handle formatting the given file. */
   private fun overrideFormatterForFile(file: PsiFile): Boolean {
-    return file.fileType.defaultExtension == "swift" &&
-        SwiftFormatSettings.getInstance(project).isEnabled
+    return (SwiftFileType.INSTANCE.equals(file.fileType) &&
+        SwiftFormatSettings.getInstance(project).isEnabled)
   }
 
   private fun formatInternal(file: PsiFile, ranges: Collection<TextRange>) {
