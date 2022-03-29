@@ -4,7 +4,7 @@
 name: Release
 on:
   release:
-    types: [prereleased, released]
+    types: [ prereleased, released ]
 
 jobs:
 
@@ -43,6 +43,12 @@ jobs:
           CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
 
           echo "::set-output name=changelog::$CHANGELOG"
+
+      # Install AppCode
+      - name: Install AppCode
+        run: |
+          curl -O https://raw.githubusercontent.com/Homebrew/homebrew-cask/e66050372ebef18e527da709ce91962ad0289dca/Casks/appcode.rb
+          brew install --cask appcode.rb
 
       # Update Unreleased section with the current release note
       - name: Patch Changelog
