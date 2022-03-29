@@ -74,6 +74,18 @@ jobs:
           curl -O https://raw.githubusercontent.com/Homebrew/homebrew-cask/e66050372ebef18e527da709ce91962ad0289dca/Casks/appcode.rb
           brew install --cask appcode.rb
 
+      # Run tests
+      - name: Run Tests
+        run: ./gradlew test
+
+      # Collect Tests Result of failed tests
+      - name: Collect Tests Result
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: tests-result
+          path: ${{ github.workspace }}/build/reports/tests
+
       # Cache Plugin Verifier IDEs
       - name: Setup Plugin Verifier IDEs Cache
         uses: actions/cache@v2.1.7
