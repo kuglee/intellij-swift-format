@@ -3,12 +3,12 @@
 ## [Unreleased]
 
 ## [1.0.0-beta3]
-### Added'''
-'- Proper Swift filetype detection.'''
-''
-'### Changed'''
-'- Updated utils from klazuka/intellij-elm.'''
-'- Build only for AppCode.
+### Added
+- Proper Swift filetype detection.
+
+### Changed
+- Updated utils from klazuka/intellij-elm.
+- Build only for AppCode.
 
 ## [1.0.0-beta1]
 ### Added
