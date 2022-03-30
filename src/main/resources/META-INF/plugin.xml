@@ -1,4 +1,4 @@
-<idea-plugin>
+<idea-plugin require-restart="true">
     <id>org.swiftformat.plugin</id>
     <name>swift-format</name>
     <vendor url="https://github.com/kuglee/intellij-swift-format">kuglee</vendor>
