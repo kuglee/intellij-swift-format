@@ -23,7 +23,7 @@ import org.swiftformat.plugin.utils.openapiext.isNotSuccess
 class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
 
   private fun getFormattedContentOfDocument(document: Document, project: Project): ProcessOutput {
-    val arguments = listOf("format")
+    val arguments = listOf("format", "--parallel")
 
     return GeneralCommandLine(swiftFormatExecutablePath)
         .withParameters(arguments)
