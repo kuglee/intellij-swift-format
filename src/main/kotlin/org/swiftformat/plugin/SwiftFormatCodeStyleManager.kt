@@ -17,10 +17,13 @@
 package org.swiftformat.plugin
 
 import com.google.common.collect.ImmutableList
+import com.intellij.codeInsight.hint.HintManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Document
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
@@ -122,6 +125,13 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
    * (usually using [.performReplacements]).
    */
   private fun format(document: Document, ranges: Collection<TextRange>) {
+    if (shouldShowNotificationAfterReformat() &&
+        ranges.size == 1 &&
+        document.text.length != ranges.first().length) {
+      showInformationHint("No lines changed: range formatting is not supported by swift-format")
+      return
+    }
+
     val settings = SwiftFormatSettings.getInstance(project)
     val formatter = SwiftFormatCLI(Path.of(settings.swiftFormatPath))
 
@@ -143,4 +153,15 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
       PsiDocumentManager.getInstance(project).commitDocument(document)
     }
   }
+
+  private fun showInformationHint(message: String, position: Short = HintManager.UNDER) {
+    val editor = FileEditorManager.getInstance(project).selectedTextEditor
+    if (editor != null) {
+      val hintManager = HintManager.getInstance()
+      hintManager.showInformationHint(editor, message, position)
+    }
+  }
+
+  private fun shouldShowNotificationAfterReformat() =
+      Registry.get("editor.show.notification.after.reformat").asBoolean()
 }
