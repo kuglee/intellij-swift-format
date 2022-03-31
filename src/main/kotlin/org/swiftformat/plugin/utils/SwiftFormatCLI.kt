@@ -21,7 +21,7 @@ import org.swiftformat.plugin.utils.openapiext.isNotSuccess
 /** Interact with external `swift-format` process. */
 class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
   private fun getFormattedText(text: String, project: Project): ProcessOutput {
-    val arguments = listOf("format", "--parallel")
+    val arguments = listOf("format", "--parallel", "--ignore-unparsable-files")
 
     return GeneralCommandLine(swiftFormatExecutablePath)
         .withParameters(arguments)
