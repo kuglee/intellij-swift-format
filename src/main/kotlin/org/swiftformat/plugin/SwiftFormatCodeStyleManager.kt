@@ -34,7 +34,7 @@ import java.util.*
 import org.swiftformat.plugin.utils.SwiftFormatCLI
 
 /**
- * A [CodeStyleManager] implementation which formats .java files with swift-format. Formatting of
+ * A [CodeStyleManager] implementation which formats .swift files with swift-format. Formatting of
  * all other types of files is delegated to IntelliJ's default implementation.
  */
 internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
@@ -123,23 +123,24 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
    */
   private fun format(document: Document, ranges: Collection<TextRange>) {
     val settings = SwiftFormatSettings.getInstance(project)
-    val formatter = SwiftFormatCLI(swiftFormatExecutablePath = Path.of(settings.swiftFormatPath))
+    val formatter = SwiftFormatCLI(Path.of(settings.swiftFormatPath))
 
-    performReplacements(document, FormatterUtil.getReplacements(formatter, document, project))
+    performReplacements(document, FormatterUtil.getReplacements(formatter, document.text, project))
   }
 
-  private fun performReplacements(document: Document, formattedText: String?) {
-    if (formattedText == null) {
+  private fun performReplacements(document: Document, replacements: Map<TextRange, String>) {
+    if (replacements.isEmpty()) {
       return
     }
 
-    val sourceText = document.text
-
-    if (sourceText != formattedText) {
-      WriteCommandAction.runWriteCommandAction(project) {
-        document.setText(formattedText)
-        PsiDocumentManager.getInstance(project).commitDocument(document)
+    val sorted =
+        TreeMap<TextRange, String>(Comparator.comparing { obj: TextRange -> obj.startOffset })
+    sorted.putAll(replacements)
+    WriteCommandAction.runWriteCommandAction(project) {
+      for ((key, value) in sorted.descendingMap()) {
+        document.replaceString(key.startOffset, key.endOffset, value)
       }
+      PsiDocumentManager.getInstance(project).commitDocument(document)
     }
   }
 }
