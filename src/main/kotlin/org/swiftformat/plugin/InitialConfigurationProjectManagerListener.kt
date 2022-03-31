@@ -51,6 +51,6 @@ internal class InitialConfigurationProjectManagerListener : ProjectManagerListen
                   .showSettingsDialog(project, SwiftFormatConfigurable::class.java)
             }
     project.showBalloon(
-        "The plugin needs to be configured.", NotificationType.WARNING, configureAction)
+        "The plugin needs to be configured.", NotificationType.INFORMATION, configureAction)
   }
 }
