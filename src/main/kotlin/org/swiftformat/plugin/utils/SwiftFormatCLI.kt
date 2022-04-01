@@ -30,10 +30,7 @@ class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
 
   sealed class SwiftFormatResult(val msg: String, val cause: Throwable? = null) {
     class Success(formattedText: String) : SwiftFormatResult(formattedText)
-    class BadSyntax(msg: String? = null, cause: Throwable? = null) :
-        SwiftFormatResult(
-            msg ?: "swift-format encountered syntax errors that it could not fix", cause)
-    class FailedToStart : SwiftFormatResult("Failed to launch swift-format. Is the path correct?")
+    class FailedToStart : SwiftFormatResult("Failed to launch swift-format.")
     class UnknownFailure(msg: String? = null, cause: Throwable?) :
         SwiftFormatResult(msg ?: "Something went wrong running swift-format", cause)
   }
@@ -48,11 +45,10 @@ class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
                   true,
                   null)
         } catch (e: ExecutionException) {
-          val msg = e.message ?: "unknown"
-          return when {
-            msg.contains("Fatal error: ", ignoreCase = true) ->
-                SwiftFormatResult.BadSyntax(cause = e)
-            e is ProcessNotCreatedException -> SwiftFormatResult.FailedToStart()
+          return when (e) {
+            is ProcessNotCreatedException -> {
+              SwiftFormatResult.FailedToStart()
+            }
             else -> SwiftFormatResult.UnknownFailure(cause = e)
           }
         }
@@ -61,8 +57,8 @@ class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
         return SwiftFormatResult.UnknownFailure(
             "Process output exit code was non-zero", cause = null)
 
-    val formatted = processOutput.stdout
+    val formattedText = processOutput.stdout
 
-    return SwiftFormatResult.Success(formatted)
+    return SwiftFormatResult.Success(formattedText)
   }
 }
