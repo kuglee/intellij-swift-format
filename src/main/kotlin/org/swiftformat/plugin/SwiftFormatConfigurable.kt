@@ -94,7 +94,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable {
 
   override fun isModified() = panel.isModified()
 
-  override fun getDisplayName() = "Swift"
+  override fun getDisplayName() = "swift-format Settings"
 
   private fun getDisabledState(): SwiftFormatSettings.EnabledState {
     // The default settings (inherited by new projects) are either 'enabled' or
