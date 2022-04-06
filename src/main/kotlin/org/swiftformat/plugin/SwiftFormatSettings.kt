@@ -20,6 +20,9 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
+import java.nio.file.Path
+
+const val swiftFormatConfigFilename = ".swift-format"
 
 @State(name = "SwiftFormatSettings", storages = [Storage("swift-format.xml")])
 internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSettings.State> {
@@ -67,6 +70,14 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
   companion object {
     fun getInstance(project: Project?): SwiftFormatSettings {
       return project!!.getService(SwiftFormatSettings::class.java)
+    }
+
+    fun getSwiftFormatConfigFilePath(project: Project): Path? {
+      val basePath = project.basePath
+
+      return if (basePath != null) {
+        Path.of("$basePath/$swiftFormatConfigFilename")
+      } else null
     }
   }
 }

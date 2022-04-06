@@ -12,7 +12,9 @@ import com.intellij.execution.process.ProcessNotCreatedException
 import com.intellij.execution.process.ProcessOutput
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
+import com.intellij.util.io.exists
 import java.nio.file.Path
+import org.swiftformat.plugin.SwiftFormatSettings
 import org.swiftformat.plugin.swiftFormatTool
 import org.swiftformat.plugin.utils.openapiext.GeneralCommandLine
 import org.swiftformat.plugin.utils.openapiext.execute
@@ -21,7 +23,17 @@ import org.swiftformat.plugin.utils.openapiext.isNotSuccess
 /** Interact with external `swift-format` process. */
 class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
   private fun getFormattedText(text: String, project: Project): ProcessOutput {
-    val arguments = listOf("format", "--parallel", "--ignore-unparsable-files")
+    val arguments =
+        mutableListOf(
+            "format",
+            "--parallel",
+            "--ignore-unparsable-files",
+        )
+
+    val configFilePath = SwiftFormatSettings.getSwiftFormatConfigFilePath(project)
+    if (configFilePath != null && configFilePath.exists()) {
+      arguments.addAll(listOf("--configuration", configFilePath.toString()))
+    }
 
     return GeneralCommandLine(swiftFormatExecutablePath)
         .withParameters(arguments)

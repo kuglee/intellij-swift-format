@@ -17,20 +17,43 @@
 
 package org.swiftformat.plugin
 
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.util.Disposer
+import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.dsl.gridLayout.HorizontalAlign
-import com.intellij.ui.layout.PropertyBinding
+import com.intellij.ui.dsl.gridLayout.VerticalAlign
+import com.intellij.util.io.exists
+import com.intellij.util.ui.JBEmptyBorder
+import java.awt.Dimension
+import javax.swing.JComponent
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.swiftformat.plugin.utils.SwiftSuggest
 
 const val swiftFormatTool = "swift-format"
+private val log = Logger.getInstance("org.swiftformat.plugin.SwiftFormatConfigurable")
 
 @Suppress("UnstableApiUsage", "DialogTitleCapitalization")
-class SwiftFormatConfigurable(private val project: Project) : Configurable {
+class SwiftFormatConfigurable(private val project: Project) : Configurable, Disposable {
+  private val settings = SwiftFormatSettings.getInstance(project)
+  private var configuration: Configuration
+  private lateinit var settingsPanel: DialogPanel
+  private lateinit var formattingPanel: DialogPanel
+  private lateinit var rulesPanel: DialogPanel
+
+  init {
+    Disposer.register(project, this)
+    configuration = readConfiguration() ?: Configuration()
+  }
 
   private fun Row.toolPathTextField(programName: String): Cell<TextFieldWithBrowseButton> {
     return textFieldWithBrowseButton(
@@ -43,27 +66,150 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable {
         .horizontalAlign(HorizontalAlign.FILL)
   }
 
-  private val settings = SwiftFormatSettings.getInstance(project)
-  private lateinit var panel: DialogPanel
+  private fun JBTabbedPane.add(title: String, component: JComponent, scrollPane: Boolean = false) {
+    this.add(
+        title,
+        if (scrollPane)
+            panel {
+              row {
+                    cell(component, JBScrollPane(component).also { it.border = JBEmptyBorder(0) })
+                        .horizontalAlign(HorizontalAlign.FILL)
+                        .verticalAlign(VerticalAlign.FILL)
+                        .resizableColumn()
+                  }
+                  .resizableRow()
+            }
+        else component)
+  }
 
-  // Bug?: using PropertyBinding because regular property can't be private
-  private var isEnabled =
-      PropertyBinding(
-          get = settings::isEnabled,
-          set = {
-            settings.setEnabled(
-                if (it) SwiftFormatSettings.EnabledState.ENABLED else getDisabledState())
-          })
+  private fun settingsPanel(): DialogPanel = panel {
+    row {
+      checkBox("Enable swift-format")
+          .bindSelected(
+              getter = settings::isEnabled,
+              setter = {
+                settings.setEnabled(
+                    if (it) SwiftFormatSettings.EnabledState.ENABLED else getDisabledState())
+              })
+    }
+    row("Location:") {
+      pathFieldPlusAutoDiscoverButton(swiftFormatTool) { it.bindText(settings::swiftFormatPath) }
+    }
+  }
 
-  override fun createComponent(): DialogPanel {
-    panel = panel {
-      row { checkBox("Enable swift-format").bindSelected(isEnabled) }
-      row("Location:") {
-        pathFieldPlusAutoDiscoverButton(swiftFormatTool) { it.bindText(settings::swiftFormatPath) }
+  private fun formattingPanel(): DialogPanel = panel {
+    group("Tabs and Indents") {
+      row {
+        checkBox("Use tab character")
+            .bindSelected(
+                getter = { configuration.indentation is Tabs },
+                setter = {
+                  if (it) {
+                    configuration.indentation = Tabs(configuration.indentation.count)
+                  } else {
+                    configuration.indentation = Spaces(configuration.indentation.count)
+                  }
+                })
+      }
+      row("Tab size:") { intTextField(0..10000).columns(1).bindIntText(configuration::tabWidth) }
+      row("Indent:") {
+        intTextField(0..10000)
+            .columns(1)
+            .bindIntText(
+                getter = { configuration.indentation.count },
+                setter = { configuration.indentation.count = it })
+      }
+      indent {
+        row {
+          checkBox("Indent conditional compilation blocks")
+              .bindSelected(configuration::indentConditionalCompilationBlocks)
+        }
+        row {
+          checkBox("Indent switch case labels").bindSelected(configuration::indentSwitchCaseLabels)
+        }
+      }
+      row("Line length:") {
+        intTextField(0..10000).columns(1).bindIntText(configuration::lineLength)
       }
     }
+    group("Line breaks") {
+      row {
+        checkBox("Respects existing line breaks")
+            .bindSelected(configuration::respectsExistingLineBreaks)
+      }
+      row {
+        checkBox("Line break before control flow keywords")
+            .bindSelected(configuration::lineBreakBeforeControlFlowKeywords)
+      }
+      row {
+        checkBox("Line break before each argument")
+            .bindSelected(configuration::lineBreakBeforeEachArgument)
+      }
+      row {
+        checkBox("Line break before each generic requirement")
+            .bindSelected(configuration::lineBreakBeforeEachGenericRequirement)
+      }
+      row {
+        checkBox("Prioritize keeping function output together")
+            .bindSelected(configuration::prioritizeKeepingFunctionOutputTogether)
+      }
+      row {
+        checkBox("Line break around multiline expression chain components")
+            .bindSelected(configuration::lineBreakAroundMultilineExpressionChainComponents)
+      }
+      row("Maximum blank lines:") {
+        intTextField(0..10000).columns(1).bindIntText(configuration::maximumBlankLines)
+      }
+    }
+    group("Misc.") {
+      row("File scoped declaration privacy:") {
+        comboBox(FileScopedDeclarationPrivacy.AccessLevel.values())
+            .bindItem(
+                getter = { configuration.fileScopedDeclarationPrivacy.accessLevel },
+                setter = {
+                  configuration.fileScopedDeclarationPrivacy.accessLevel =
+                      it ?: FileScopedDeclarationPrivacy.AccessLevel.private
+                })
+      }
+    }
+  }
 
-    return panel
+  private fun rulesPanel(): DialogPanel = panel {
+    val rules = RuleRegistry.rules
+    for (key in rules.keys) {
+      row {
+        checkBox(key.separateCamelCase().sentenceCase())
+            .bindSelected(getter = { rules.getOrDefault(key, false) }, setter = { rules[key] = it })
+      }
+    }
+  }
+
+  private fun registerDisposable(panel: DialogPanel) {
+    val disposable = Disposer.newDisposable()
+    panel.registerValidators(disposable)
+    Disposer.register(this, disposable)
+  }
+
+  override fun createComponent(): JComponent {
+    val tabbedPane = JBTabbedPane().also { it.preferredSize = Dimension(0, 0) }
+
+    settingsPanel =
+        settingsPanel().also {
+          registerDisposable(it)
+          tabbedPane.add("Settings", it, scrollPane = true)
+        }
+    formattingPanel =
+        formattingPanel().also {
+          registerDisposable(it)
+          tabbedPane.add("Formatting", it, scrollPane = true)
+        }
+    rulesPanel =
+        rulesPanel().also {
+          registerDisposable(it)
+          tabbedPane.add("Rules", it, scrollPane = true)
+        }
+
+    return tabbedPane
   }
 
   private fun Row.pathFieldPlusAutoDiscoverButton(
@@ -88,13 +234,26 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable {
 
   override fun disposeUIResources() {}
 
-  override fun reset() = panel.reset()
+  override fun reset() {
+    settingsPanel.reset()
+    formattingPanel.reset()
+    rulesPanel.reset()
+  }
 
-  override fun apply() = panel.apply()
+  override fun apply() {
+    settingsPanel.apply()
+    formattingPanel.apply()
+    rulesPanel.apply()
 
-  override fun isModified() = panel.isModified()
+    writeConfiguration()
+  }
+
+  override fun isModified() =
+      settingsPanel.isModified() || formattingPanel.isModified() || rulesPanel.isModified()
 
   override fun getDisplayName() = "swift-format Settings"
+
+  override fun dispose() {}
 
   private fun getDisabledState(): SwiftFormatSettings.EnabledState {
     // The default settings (inherited by new projects) are either 'enabled' or
@@ -106,4 +265,50 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable {
       SwiftFormatSettings.EnabledState.DISABLED
     }
   }
+
+  private fun readConfiguration(): Configuration? {
+    val path = SwiftFormatSettings.getSwiftFormatConfigFilePath(project)
+
+    return if (path != null && path.exists()) {
+      try {
+        Json.decodeFromString(path.toFile().readText())
+      } catch (e: Exception) {
+        log.warn(ConfigError.readErrorMessage, e)
+        null
+      }
+    } else {
+      null
+    }
+  }
+
+  private fun writeConfiguration() {
+    val prettyJson = Json {
+      encodeDefaults = true
+      prettyPrint = true
+    }
+
+    val configurationString = prettyJson.encodeToString(configuration)
+    val configFilePath = SwiftFormatSettings.getSwiftFormatConfigFilePath(project)
+
+    try {
+      configFilePath?.toFile()?.writeText(configurationString)
+          ?: log.error(ConfigError.writeErrorMessage)
+    } catch (e: Exception) {
+      log.error(ConfigError.writeErrorMessage, e)
+    }
+  }
+}
+
+private fun String.separateCamelCase() =
+    this.replace("""((?<=\p{Ll})\p{Lu}|(?<!^)\p{Lu}(?=\p{Ll}))""".toRegex(), " $1")
+
+private fun String.sentenceCase(): String {
+  return this.split(" ")
+      .joinToString(" ") { if (it == it.uppercase()) it else it.lowercase() }
+      .replaceFirstChar { it.uppercase() }
+}
+
+object ConfigError {
+  const val readErrorMessage = "Couldn't read configuration from file"
+  const val writeErrorMessage = "Couldn't write configuration to file"
 }
