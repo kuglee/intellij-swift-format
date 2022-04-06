@@ -102,84 +102,163 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
       row {
         checkBox("Use tab character")
             .bindSelected(
-                getter = { configuration.indentation is Tabs },
+                getter = {
+                  (configuration.indentation ?: defaultConfiguration.indentation!!) is Tabs
+                },
                 setter = {
                   if (it) {
-                    configuration.indentation = Tabs(configuration.indentation.count)
+                    configuration.indentation = Tabs(defaultConfiguration.indentation!!.count)
                   } else {
-                    configuration.indentation = Spaces(configuration.indentation.count)
+                    configuration.indentation = Spaces(defaultConfiguration.indentation!!.count)
                   }
                 })
       }
-      row("Tab size:") { intTextField(0..10000).columns(1).bindIntText(configuration::tabWidth) }
+      row("Tab size:") {
+        intTextField(0..10000)
+            .columns(1)
+            .bindIntText(
+                getter = { configuration.tabWidth ?: defaultConfiguration.tabWidth!! },
+                setter = { configuration.tabWidth = it })
+      }
       row("Indent:") {
         intTextField(0..10000)
             .columns(1)
             .bindIntText(
-                getter = { configuration.indentation.count },
-                setter = { configuration.indentation.count = it })
+                getter = {
+                  configuration.indentation?.count ?: defaultConfiguration.indentation!!.count
+                },
+                setter = {
+                  if (configuration.indentation != null) {
+                    configuration.indentation!!.count = it
+                  } else {
+                    configuration.indentation = defaultConfiguration.indentation
+                    configuration.indentation!!.count = it
+                  }
+                })
       }
       indent {
         row {
           checkBox("Indent conditional compilation blocks")
-              .bindSelected(configuration::indentConditionalCompilationBlocks)
+              .bindSelected(
+                  getter = {
+                    configuration.indentConditionalCompilationBlocks
+                        ?: defaultConfiguration.indentConditionalCompilationBlocks!!
+                  },
+                  setter = { configuration.indentConditionalCompilationBlocks = it })
         }
         row {
-          checkBox("Indent switch case labels").bindSelected(configuration::indentSwitchCaseLabels)
+          checkBox("Indent switch case labels")
+              .bindSelected(
+                  getter = {
+                    configuration.indentSwitchCaseLabels
+                        ?: defaultConfiguration.indentSwitchCaseLabels!!
+                  },
+                  setter = { configuration.indentSwitchCaseLabels = it })
         }
       }
       row("Line length:") {
-        intTextField(0..10000).columns(1).bindIntText(configuration::lineLength)
+        intTextField(0..10000)
+            .columns(1)
+            .bindIntText(
+                getter = { configuration.lineLength ?: defaultConfiguration.lineLength!! },
+                setter = { configuration.lineLength = it })
       }
     }
     group("Line breaks") {
       row {
         checkBox("Respects existing line breaks")
-            .bindSelected(configuration::respectsExistingLineBreaks)
+            .bindSelected(
+                getter = {
+                  configuration.respectsExistingLineBreaks
+                      ?: defaultConfiguration.respectsExistingLineBreaks!!
+                },
+                setter = { configuration.respectsExistingLineBreaks = it })
       }
       row {
         checkBox("Line break before control flow keywords")
-            .bindSelected(configuration::lineBreakBeforeControlFlowKeywords)
+            .bindSelected(
+                getter = {
+                  configuration.lineBreakBeforeControlFlowKeywords
+                      ?: defaultConfiguration.lineBreakBeforeControlFlowKeywords!!
+                },
+                setter = { configuration.lineBreakBeforeControlFlowKeywords = it })
       }
       row {
         checkBox("Line break before each argument")
-            .bindSelected(configuration::lineBreakBeforeEachArgument)
+            .bindSelected(
+                getter = {
+                  configuration.lineBreakBeforeEachArgument
+                      ?: defaultConfiguration.lineBreakBeforeEachArgument!!
+                },
+                setter = { configuration.lineBreakBeforeEachArgument = it })
       }
       row {
         checkBox("Line break before each generic requirement")
-            .bindSelected(configuration::lineBreakBeforeEachGenericRequirement)
+            .bindSelected(
+                getter = {
+                  configuration.lineBreakBeforeEachGenericRequirement
+                      ?: defaultConfiguration.lineBreakBeforeEachGenericRequirement!!
+                },
+                setter = { configuration.lineBreakBeforeEachGenericRequirement = it })
       }
       row {
         checkBox("Prioritize keeping function output together")
-            .bindSelected(configuration::prioritizeKeepingFunctionOutputTogether)
+            .bindSelected(
+                getter = {
+                  configuration.prioritizeKeepingFunctionOutputTogether
+                      ?: defaultConfiguration.prioritizeKeepingFunctionOutputTogether!!
+                },
+                setter = { configuration.prioritizeKeepingFunctionOutputTogether = it })
       }
       row {
         checkBox("Line break around multiline expression chain components")
-            .bindSelected(configuration::lineBreakAroundMultilineExpressionChainComponents)
+            .bindSelected(
+                getter = {
+                  configuration.lineBreakAroundMultilineExpressionChainComponents
+                      ?: defaultConfiguration.lineBreakAroundMultilineExpressionChainComponents!!
+                },
+                setter = { configuration.lineBreakAroundMultilineExpressionChainComponents = it })
       }
       row("Maximum blank lines:") {
-        intTextField(0..10000).columns(1).bindIntText(configuration::maximumBlankLines)
+        intTextField(0..10000)
+            .columns(1)
+            .bindIntText(
+                getter = {
+                  configuration.maximumBlankLines ?: defaultConfiguration.maximumBlankLines!!
+                },
+                setter = { configuration.maximumBlankLines = it })
       }
     }
     group("Misc.") {
       row("File scoped declaration privacy:") {
         comboBox(FileScopedDeclarationPrivacy.AccessLevel.values())
             .bindItem(
-                getter = { configuration.fileScopedDeclarationPrivacy.accessLevel },
+                getter = {
+                  configuration.fileScopedDeclarationPrivacy?.accessLevel
+                      ?: defaultConfiguration.fileScopedDeclarationPrivacy!!.accessLevel
+                },
                 setter = {
-                  configuration.fileScopedDeclarationPrivacy.accessLevel =
-                      it ?: FileScopedDeclarationPrivacy.AccessLevel.private
+                  if (it != null) {
+                    configuration.fileScopedDeclarationPrivacy = FileScopedDeclarationPrivacy(it)
+                  }
                 })
       }
     }
   }
 
   private fun rulesPanel(): DialogPanel = panel {
-    val rules = RuleRegistry.rules
-    for (key in rules.keys) {
+    for (key in RuleRegistry.rules.keys) {
       row {
         checkBox(key.separateCamelCase().sentenceCase())
-            .bindSelected(getter = { rules.getOrDefault(key, false) }, setter = { rules[key] = it })
+            .bindSelected(
+                getter = {
+                  configuration.rules?.getOrDefault(key, RuleRegistry.defaultRules[key])
+                      ?: RuleRegistry.defaultRules.getOrDefault(key, false) ?: false
+                },
+                setter = {
+                  configuration.rules = configuration.rules ?: RuleRegistry.rules
+                  configuration.rules!![key] = it
+                })
       }
     }
   }
@@ -282,10 +361,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   }
 
   private fun writeConfiguration() {
-    val prettyJson = Json {
-      encodeDefaults = true
-      prettyPrint = true
-    }
+    val prettyJson = Json { prettyPrint = true }
 
     val configurationString = prettyJson.encodeToString(configuration)
     val configFilePath = SwiftFormatSettings.getSwiftFormatConfigFilePath(project)

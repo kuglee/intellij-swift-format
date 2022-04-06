@@ -4,29 +4,54 @@
 package org.swiftformat.plugin
 
 import kotlinx.serialization.*
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonContentPolymorphicSerializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
 
 @Serializable
 data class Configuration(
-    var fileScopedDeclarationPrivacy: FileScopedDeclarationPrivacy =
-        FileScopedDeclarationPrivacy(FileScopedDeclarationPrivacy.AccessLevel.private),
-    var indentation: Indentation = Spaces(2),
-    var indentConditionalCompilationBlocks: Boolean = true,
-    var indentSwitchCaseLabels: Boolean = false,
-    var lineBreakAroundMultilineExpressionChainComponents: Boolean = false,
-    var lineBreakBeforeControlFlowKeywords: Boolean = false,
-    var lineBreakBeforeEachArgument: Boolean = false,
-    var lineBreakBeforeEachGenericRequirement: Boolean = false,
-    var lineLength: Int = 100,
-    var maximumBlankLines: Int = 1,
-    var prioritizeKeepingFunctionOutputTogether: Boolean = false,
-    var respectsExistingLineBreaks: Boolean = true,
-    var rules: Map<String, Boolean> = RuleRegistry.rules,
-    var tabWidth: Int = 8,
-    var version: Int = 1
+    var fileScopedDeclarationPrivacy: FileScopedDeclarationPrivacy? = null,
+    var indentation: Indentation? = null,
+    var indentConditionalCompilationBlocks: Boolean? = null,
+    var indentSwitchCaseLabels: Boolean? = null,
+    var lineBreakAroundMultilineExpressionChainComponents: Boolean? = null,
+    var lineBreakBeforeControlFlowKeywords: Boolean? = null,
+    var lineBreakBeforeEachArgument: Boolean? = null,
+    var lineBreakBeforeEachGenericRequirement: Boolean? = null,
+    var lineLength: Int? = null,
+    var maximumBlankLines: Int? = null,
+    var prioritizeKeepingFunctionOutputTogether: Boolean? = null,
+    var respectsExistingLineBreaks: Boolean? = null,
+    @Serializable(with = MutableMapWithNullableBooleanValueSerializer::class)
+    var rules: MutableMap<String, Boolean?>? = null,
+    var tabWidth: Int? = null,
+    var version: Int? = null,
 )
+
+val defaultConfiguration =
+    Configuration(
+        fileScopedDeclarationPrivacy =
+            FileScopedDeclarationPrivacy(FileScopedDeclarationPrivacy.AccessLevel.private),
+        indentation = Spaces(2),
+        indentConditionalCompilationBlocks = true,
+        indentSwitchCaseLabels = false,
+        lineBreakAroundMultilineExpressionChainComponents = false,
+        lineBreakBeforeControlFlowKeywords = false,
+        lineBreakBeforeEachArgument = false,
+        lineBreakBeforeEachGenericRequirement = false,
+        lineLength = 100,
+        maximumBlankLines = 1,
+        prioritizeKeepingFunctionOutputTogether = false,
+        respectsExistingLineBreaks = true,
+        rules = RuleRegistry.rules,
+        tabWidth = 8,
+        version = 1)
 
 @Serializable
 data class FileScopedDeclarationPrivacy(var accessLevel: AccessLevel) {
@@ -55,45 +80,133 @@ object IdentationSerializer : JsonContentPolymorphicSerializer<Indentation>(Inde
       }
 }
 
+object MutableMapWithNullableBooleanValueSerializer : KSerializer<MutableMap<String, Boolean?>> {
+  private val mapSerializer = MapSerializer(String.serializer(), Boolean.serializer().nullable)
+
+  override val descriptor: SerialDescriptor = mapSerializer.descriptor
+
+  override fun serialize(encoder: Encoder, value: MutableMap<String, Boolean?>) {
+    mapSerializer.serialize(encoder, (value.filterValues { it != null }))
+  }
+
+  override fun deserialize(decoder: Decoder): MutableMap<String, Boolean?> {
+    return mapSerializer.deserialize(decoder).toMutableMap()
+  }
+}
+
 @Serializable
-class RuleRegistry {
-  companion object {
-    val rules: MutableMap<String, Boolean> =
-        mutableMapOf(
-            "AllPublicDeclarationsHaveDocumentation" to false,
-            "AlwaysUseLowerCamelCase" to true,
-            "AmbiguousTrailingClosureOverload" to true,
-            "BeginDocumentationCommentWithOneLineSummary" to false,
-            "DoNotUseSemicolons" to true,
-            "DontRepeatTypeInStaticProperties" to true,
-            "FileScopedDeclarationPrivacy" to true,
-            "FullyIndirectEnum" to true,
-            "GroupNumericLiterals" to true,
-            "IdentifiersMustBeASCII" to true,
-            "NeverForceUnwrap" to false,
-            "NeverUseForceTry" to false,
-            "NeverUseImplicitlyUnwrappedOptionals" to false,
-            "NoAccessLevelOnExtensionDeclaration" to true,
-            "NoBlockComments" to true,
-            "NoCasesWithOnlyFallthrough" to true,
-            "NoEmptyTrailingClosureParentheses" to true,
-            "NoLabelsInCasePatterns" to true,
-            "NoLeadingUnderscores" to false,
-            "NoParensAroundConditions" to true,
-            "NoVoidReturnOnFunctionSignature" to true,
-            "OneCasePerLine" to true,
-            "OneVariableDeclarationPerLine" to true,
-            "OnlyOneTrailingClosureArgument" to true,
-            "OrderedImports" to true,
-            "ReturnVoidInsteadOfEmptyTuple" to true,
-            "UseEarlyExits" to false,
-            "UseLetInEveryBoundCaseVariable" to true,
-            "UseShorthandTypeNames" to true,
-            "UseSingleLinePropertyGetter" to true,
-            "UseSynthesizedInitializer" to true,
-            "UseTripleSlashForDocumentationComments" to true,
-            "UseWhereClausesInForLoops" to false,
-            "ValidateDocumentationComments" to false,
-        )
+object RuleRegistry {
+  val rules: MutableMap<String, Boolean?> = createRulesMap()
+  val defaultRules: MutableMap<String, Boolean?> =
+      createRulesMap(
+          allPublicDeclarationsHaveDocumentation = false,
+          alwaysUseLowerCamelCase = true,
+          ambiguousTrailingClosureOverload = true,
+          beginDocumentationCommentWithOneLineSummary = false,
+          doNotUseSemicolons = true,
+          dontRepeatTypeInStaticProperties = true,
+          fileScopedDeclarationPrivacy = true,
+          fullyIndirectEnum = true,
+          groupNumericLiterals = true,
+          identifiersMustBeASCII = true,
+          neverForceUnwrap = false,
+          neverUseForceTry = false,
+          neverUseImplicitlyUnwrappedOptionals = false,
+          noAccessLevelOnExtensionDeclaration = true,
+          noBlockComments = true,
+          noCasesWithOnlyFallthrough = true,
+          noEmptyTrailingClosureParentheses = true,
+          noLabelsInCasePatterns = true,
+          noLeadingUnderscores = false,
+          noParensAroundConditions = true,
+          noVoidReturnOnFunctionSignature = true,
+          oneCasePerLine = true,
+          oneVariableDeclarationPerLine = true,
+          onlyOneTrailingClosureArgument = true,
+          orderedImports = true,
+          returnVoidInsteadOfEmptyTuple = true,
+          useEarlyExits = false,
+          useLetInEveryBoundCaseVariable = true,
+          useShorthandTypeNames = true,
+          useSingleLinePropertyGetter = true,
+          useSynthesizedInitializer = true,
+          useTripleSlashForDocumentationComments = true,
+          useWhereClausesInForLoops = false,
+          validateDocumentationComments = true,
+      )
+
+  private fun createRulesMap(
+      allPublicDeclarationsHaveDocumentation: Boolean? = null,
+      alwaysUseLowerCamelCase: Boolean? = null,
+      ambiguousTrailingClosureOverload: Boolean? = null,
+      beginDocumentationCommentWithOneLineSummary: Boolean? = null,
+      doNotUseSemicolons: Boolean? = null,
+      dontRepeatTypeInStaticProperties: Boolean? = null,
+      fileScopedDeclarationPrivacy: Boolean? = null,
+      fullyIndirectEnum: Boolean? = null,
+      groupNumericLiterals: Boolean? = null,
+      identifiersMustBeASCII: Boolean? = null,
+      neverForceUnwrap: Boolean? = null,
+      neverUseForceTry: Boolean? = null,
+      neverUseImplicitlyUnwrappedOptionals: Boolean? = null,
+      noAccessLevelOnExtensionDeclaration: Boolean? = null,
+      noBlockComments: Boolean? = null,
+      noCasesWithOnlyFallthrough: Boolean? = null,
+      noEmptyTrailingClosureParentheses: Boolean? = null,
+      noLabelsInCasePatterns: Boolean? = null,
+      noLeadingUnderscores: Boolean? = null,
+      noParensAroundConditions: Boolean? = null,
+      noVoidReturnOnFunctionSignature: Boolean? = null,
+      oneCasePerLine: Boolean? = null,
+      oneVariableDeclarationPerLine: Boolean? = null,
+      onlyOneTrailingClosureArgument: Boolean? = null,
+      orderedImports: Boolean? = null,
+      returnVoidInsteadOfEmptyTuple: Boolean? = null,
+      useEarlyExits: Boolean? = null,
+      useLetInEveryBoundCaseVariable: Boolean? = null,
+      useShorthandTypeNames: Boolean? = null,
+      useSingleLinePropertyGetter: Boolean? = null,
+      useSynthesizedInitializer: Boolean? = null,
+      useTripleSlashForDocumentationComments: Boolean? = null,
+      useWhereClausesInForLoops: Boolean? = null,
+      validateDocumentationComments: Boolean? = null,
+  ): MutableMap<String, Boolean?> {
+    return mutableMapOf(
+        "AllPublicDeclarationsHaveDocumentation" to allPublicDeclarationsHaveDocumentation,
+        "AlwaysUseLowerCamelCase" to alwaysUseLowerCamelCase,
+        "AmbiguousTrailingClosureOverload" to ambiguousTrailingClosureOverload,
+        "BeginDocumentationCommentWithOneLineSummary" to
+            beginDocumentationCommentWithOneLineSummary,
+        "DoNotUseSemicolons" to doNotUseSemicolons,
+        "DontRepeatTypeInStaticProperties" to dontRepeatTypeInStaticProperties,
+        "FileScopedDeclarationPrivacy" to fileScopedDeclarationPrivacy,
+        "FullyIndirectEnum" to fullyIndirectEnum,
+        "GroupNumericLiterals" to groupNumericLiterals,
+        "IdentifiersMustBeASCII" to identifiersMustBeASCII,
+        "NeverForceUnwrap" to neverForceUnwrap,
+        "NeverUseForceTry" to neverUseForceTry,
+        "NeverUseImplicitlyUnwrappedOptionals" to neverUseImplicitlyUnwrappedOptionals,
+        "NoAccessLevelOnExtensionDeclaration" to noAccessLevelOnExtensionDeclaration,
+        "NoBlockComments" to noBlockComments,
+        "NoCasesWithOnlyFallthrough" to noCasesWithOnlyFallthrough,
+        "NoEmptyTrailingClosureParentheses" to noEmptyTrailingClosureParentheses,
+        "NoLabelsInCasePatterns" to noLabelsInCasePatterns,
+        "NoLeadingUnderscores" to noLeadingUnderscores,
+        "NoParensAroundConditions" to noParensAroundConditions,
+        "NoVoidReturnOnFunctionSignature" to noVoidReturnOnFunctionSignature,
+        "OneCasePerLine" to oneCasePerLine,
+        "OneVariableDeclarationPerLine" to oneVariableDeclarationPerLine,
+        "OnlyOneTrailingClosureArgument" to onlyOneTrailingClosureArgument,
+        "OrderedImports" to orderedImports,
+        "ReturnVoidInsteadOfEmptyTuple" to returnVoidInsteadOfEmptyTuple,
+        "UseEarlyExits" to useEarlyExits,
+        "UseLetInEveryBoundCaseVariable" to useLetInEveryBoundCaseVariable,
+        "UseShorthandTypeNames" to useShorthandTypeNames,
+        "UseSingleLinePropertyGetter" to useSingleLinePropertyGetter,
+        "UseSynthesizedInitializer" to useSynthesizedInitializer,
+        "UseTripleSlashForDocumentationComments" to useTripleSlashForDocumentationComments,
+        "UseWhereClausesInForLoops" to useWhereClausesInForLoops,
+        "ValidateDocumentationComments" to validateDocumentationComments,
+    )
   }
 }
