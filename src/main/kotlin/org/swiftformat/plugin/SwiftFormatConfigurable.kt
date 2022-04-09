@@ -255,7 +255,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   }
 
   private fun rulesPanel(): DialogPanel = panel {
-    for (key in RuleRegistry.rules.keys) {
+    for (key in RuleRegistry.rules.keys.filter { it in RuleRegistry.formatterRulesKeys }) {
       row {
         checkBox(key.separateCamelCase().sentenceCase())
             .bindSelected(

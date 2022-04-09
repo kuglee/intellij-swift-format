@@ -209,4 +209,27 @@ object RuleRegistry {
         "ValidateDocumentationComments" to validateDocumentationComments,
     )
   }
+
+  val formatterRulesKeys =
+      listOf(
+          "DoNotUseSemicolons",
+          "FileScopedDeclarationPrivacy",
+          "FullyIndirectEnum",
+          "GroupNumericLiterals",
+          "NoAccessLevelOnExtensionDeclaration",
+          "NoCasesWithOnlyFallthrough",
+          "NoEmptyTrailingClosureParentheses",
+          "NoLabelsInCasePatterns",
+          "NoParensAroundConditions",
+          "NoVoidReturnOnFunctionSignature",
+          "OneCasePerLine",
+          "OneVariableDeclarationPerLine",
+          "OrderedImports",
+          "ReturnVoidInsteadOfEmptyTuple",
+          "UseEarlyExits",
+          "UseShorthandTypeNames",
+          "UseSingleLinePropertyGetter",
+          "UseTripleSlashForDocumentationComments",
+          "UseWhereClausesInForLoops",
+      )
 }
