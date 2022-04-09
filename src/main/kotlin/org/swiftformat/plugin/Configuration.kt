@@ -97,7 +97,7 @@ object MutableMapWithNullableBooleanValueSerializer : KSerializer<MutableMap<Str
 @Serializable
 object RuleRegistry {
   val rules: MutableMap<String, Boolean?> = createRulesMap()
-  val defaultRules: MutableMap<String, Boolean?> =
+  val defaultRules: Map<String, Boolean?> =
       createRulesMap(
           allPublicDeclarationsHaveDocumentation = false,
           alwaysUseLowerCamelCase = true,
