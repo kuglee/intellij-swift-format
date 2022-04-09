@@ -46,7 +46,6 @@ private val log = Logger.getInstance("org.swiftformat.plugin.SwiftFormatConfigur
 class SwiftFormatConfigurable(private val project: Project) : Configurable, Disposable {
   private val settings = SwiftFormatSettings.getInstance(project)
   private var configuration: Configuration
-  private lateinit var settingsPanel: DialogPanel
   private lateinit var tabsAndIndentsPanel: DialogPanel
   private lateinit var lineBreaksPanel: DialogPanel
   private lateinit var otherPanel: DialogPanel
@@ -82,22 +81,6 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
                   .resizableRow()
             }
         else component)
-  }
-
-  private fun settingsPanel(): DialogPanel = panel {
-    row {
-      checkBox("Enable swift-format")
-          .bindSelected(
-              getter = settings::isEnabled,
-              setter = {
-                settings.setEnabled(
-                    if (it) SwiftFormatSettings.EnabledState.ENABLED else getDisabledState())
-              })
-    }
-    row("Location:") {
-      pathFieldPlusAutoDiscoverButton(swiftFormatTool) { it.bindText(settings::swiftFormatPath) }
-    }
-    row { button("Restore Defaults") { restoreDefaultConfiguration() } }
   }
 
   private fun restoreDefaultConfiguration() {
@@ -280,13 +263,8 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   }
 
   override fun createComponent(): JComponent {
-    val tabbedPane = JBTabbedPane().also { it.preferredSize = Dimension(0, 0) }
+    val tabbedPane = JBTabbedPane()
 
-    settingsPanel =
-        settingsPanel().also {
-          registerDisposable(it)
-          tabbedPane.add("Settings", it, scrollPane = true)
-        }
     tabsAndIndentsPanel =
         tabsAndIndentsPanel().also {
           registerDisposable(it)
@@ -309,7 +287,30 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           tabbedPane.add("Rules", it, scrollPane = true)
         }
 
-    return tabbedPane
+    return panel {
+      row {
+        checkBox("Enable swift-format")
+            .bindSelected(
+                getter = settings::isEnabled,
+                setter = {
+                  settings.setEnabled(
+                      if (it) SwiftFormatSettings.EnabledState.ENABLED else getDisabledState())
+                })
+      }
+      row("Location:") {
+        pathFieldPlusAutoDiscoverButton(swiftFormatTool) { it.bindText(settings::swiftFormatPath) }
+      }
+      row { button("Restore Defaults") { restoreDefaultConfiguration() } }
+          .bottomGap(BottomGap.SMALL)
+      row {
+            cell(tabbedPane)
+                .horizontalAlign(HorizontalAlign.FILL)
+                .verticalAlign(VerticalAlign.FILL)
+                .resizableColumn()
+          }
+          .resizableRow()
+    }
+        .also { it.preferredSize = Dimension(0, 0) }
   }
 
   private fun Row.pathFieldPlusAutoDiscoverButton(
@@ -335,7 +336,6 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   override fun disposeUIResources() {}
 
   override fun reset() {
-    settingsPanel.reset()
     tabsAndIndentsPanel.reset()
     lineBreaksPanel().reset()
     otherPanel().reset()
@@ -343,7 +343,6 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   }
 
   override fun apply() {
-    settingsPanel.apply()
     tabsAndIndentsPanel.apply()
     lineBreaksPanel.reset()
     otherPanel.reset()
@@ -353,8 +352,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   }
 
   override fun isModified() =
-      settingsPanel.isModified() ||
-          tabsAndIndentsPanel.isModified() ||
+      tabsAndIndentsPanel.isModified() ||
           lineBreaksPanel.isModified() ||
           otherPanel.isModified() ||
           rulesPanel.isModified()
