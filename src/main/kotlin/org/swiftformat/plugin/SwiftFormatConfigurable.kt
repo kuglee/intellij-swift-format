@@ -95,6 +95,14 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
     row("Location:") {
       pathFieldPlusAutoDiscoverButton(swiftFormatTool) { it.bindText(settings::swiftFormatPath) }
     }
+    row { button("Restore Defaults") { restoreDefaultConfiguration() } }
+  }
+
+  private fun restoreDefaultConfiguration() {
+    val oldConfiguration = configuration.copy()
+    configuration = defaultConfiguration.copy()
+    reset()
+    configuration = oldConfiguration
   }
 
   private fun formattingPanel(): DialogPanel = panel {
