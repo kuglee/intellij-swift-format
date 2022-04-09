@@ -47,7 +47,9 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   private val settings = SwiftFormatSettings.getInstance(project)
   private var configuration: Configuration
   private lateinit var settingsPanel: DialogPanel
-  private lateinit var formattingPanel: DialogPanel
+  private lateinit var tabsAndIndentsPanel: DialogPanel
+  private lateinit var lineBreaksPanel: DialogPanel
+  private lateinit var otherPanel: DialogPanel
   private lateinit var rulesPanel: DialogPanel
 
   init {
@@ -105,152 +107,152 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
     configuration = oldConfiguration
   }
 
-  private fun formattingPanel(): DialogPanel = panel {
-    group("Tabs and Indents") {
+  private fun tabsAndIndentsPanel(): DialogPanel = panel {
+    row {
+      checkBox("Use tab character")
+          .bindSelected(
+              getter = {
+                (configuration.indentation ?: defaultConfiguration.indentation!!) is Tabs
+              },
+              setter = {
+                if (it) {
+                  configuration.indentation = Tabs(defaultConfiguration.indentation!!.count)
+                } else {
+                  configuration.indentation = Spaces(defaultConfiguration.indentation!!.count)
+                }
+              })
+    }
+    row("Tab size:") {
+      intTextField(0..10000)
+          .columns(1)
+          .bindIntText(
+              getter = { configuration.tabWidth ?: defaultConfiguration.tabWidth!! },
+              setter = { configuration.tabWidth = it })
+    }
+    row("Indent:") {
+      intTextField(0..10000)
+          .columns(1)
+          .bindIntText(
+              getter = {
+                configuration.indentation?.count ?: defaultConfiguration.indentation!!.count
+              },
+              setter = {
+                if (configuration.indentation != null) {
+                  configuration.indentation!!.count = it
+                } else {
+                  configuration.indentation = defaultConfiguration.indentation
+                  configuration.indentation!!.count = it
+                }
+              })
+    }
+    indent {
       row {
-        checkBox("Use tab character")
+        checkBox("Indent conditional compilation blocks")
             .bindSelected(
                 getter = {
-                  (configuration.indentation ?: defaultConfiguration.indentation!!) is Tabs
+                  configuration.indentConditionalCompilationBlocks
+                      ?: defaultConfiguration.indentConditionalCompilationBlocks!!
                 },
-                setter = {
-                  if (it) {
-                    configuration.indentation = Tabs(defaultConfiguration.indentation!!.count)
-                  } else {
-                    configuration.indentation = Spaces(defaultConfiguration.indentation!!.count)
-                  }
-                })
+                setter = { configuration.indentConditionalCompilationBlocks = it })
       }
-      row("Tab size:") {
-        intTextField(0..10000)
-            .columns(1)
-            .bindIntText(
-                getter = { configuration.tabWidth ?: defaultConfiguration.tabWidth!! },
-                setter = { configuration.tabWidth = it })
-      }
-      row("Indent:") {
-        intTextField(0..10000)
-            .columns(1)
-            .bindIntText(
+      row {
+        checkBox("Indent switch case labels")
+            .bindSelected(
                 getter = {
-                  configuration.indentation?.count ?: defaultConfiguration.indentation!!.count
+                  configuration.indentSwitchCaseLabels
+                      ?: defaultConfiguration.indentSwitchCaseLabels!!
                 },
-                setter = {
-                  if (configuration.indentation != null) {
-                    configuration.indentation!!.count = it
-                  } else {
-                    configuration.indentation = defaultConfiguration.indentation
-                    configuration.indentation!!.count = it
-                  }
-                })
-      }
-      indent {
-        row {
-          checkBox("Indent conditional compilation blocks")
-              .bindSelected(
-                  getter = {
-                    configuration.indentConditionalCompilationBlocks
-                        ?: defaultConfiguration.indentConditionalCompilationBlocks!!
-                  },
-                  setter = { configuration.indentConditionalCompilationBlocks = it })
-        }
-        row {
-          checkBox("Indent switch case labels")
-              .bindSelected(
-                  getter = {
-                    configuration.indentSwitchCaseLabels
-                        ?: defaultConfiguration.indentSwitchCaseLabels!!
-                  },
-                  setter = { configuration.indentSwitchCaseLabels = it })
-        }
-      }
-      row("Line length:") {
-        intTextField(0..10000)
-            .columns(1)
-            .bindIntText(
-                getter = { configuration.lineLength ?: defaultConfiguration.lineLength!! },
-                setter = { configuration.lineLength = it })
+                setter = { configuration.indentSwitchCaseLabels = it })
       }
     }
-    group("Line breaks") {
-      row {
-        checkBox("Respects existing line breaks")
-            .bindSelected(
-                getter = {
-                  configuration.respectsExistingLineBreaks
-                      ?: defaultConfiguration.respectsExistingLineBreaks!!
-                },
-                setter = { configuration.respectsExistingLineBreaks = it })
-      }
-      row {
-        checkBox("Line break before control flow keywords")
-            .bindSelected(
-                getter = {
-                  configuration.lineBreakBeforeControlFlowKeywords
-                      ?: defaultConfiguration.lineBreakBeforeControlFlowKeywords!!
-                },
-                setter = { configuration.lineBreakBeforeControlFlowKeywords = it })
-      }
-      row {
-        checkBox("Line break before each argument")
-            .bindSelected(
-                getter = {
-                  configuration.lineBreakBeforeEachArgument
-                      ?: defaultConfiguration.lineBreakBeforeEachArgument!!
-                },
-                setter = { configuration.lineBreakBeforeEachArgument = it })
-      }
-      row {
-        checkBox("Line break before each generic requirement")
-            .bindSelected(
-                getter = {
-                  configuration.lineBreakBeforeEachGenericRequirement
-                      ?: defaultConfiguration.lineBreakBeforeEachGenericRequirement!!
-                },
-                setter = { configuration.lineBreakBeforeEachGenericRequirement = it })
-      }
-      row {
-        checkBox("Prioritize keeping function output together")
-            .bindSelected(
-                getter = {
-                  configuration.prioritizeKeepingFunctionOutputTogether
-                      ?: defaultConfiguration.prioritizeKeepingFunctionOutputTogether!!
-                },
-                setter = { configuration.prioritizeKeepingFunctionOutputTogether = it })
-      }
-      row {
-        checkBox("Line break around multiline expression chain components")
-            .bindSelected(
-                getter = {
-                  configuration.lineBreakAroundMultilineExpressionChainComponents
-                      ?: defaultConfiguration.lineBreakAroundMultilineExpressionChainComponents!!
-                },
-                setter = { configuration.lineBreakAroundMultilineExpressionChainComponents = it })
-      }
-      row("Maximum blank lines:") {
-        intTextField(0..10000)
-            .columns(1)
-            .bindIntText(
-                getter = {
-                  configuration.maximumBlankLines ?: defaultConfiguration.maximumBlankLines!!
-                },
-                setter = { configuration.maximumBlankLines = it })
-      }
+    row("Line length:") {
+      intTextField(0..10000)
+          .columns(1)
+          .bindIntText(
+              getter = { configuration.lineLength ?: defaultConfiguration.lineLength!! },
+              setter = { configuration.lineLength = it })
     }
-    group("Misc.") {
-      row("File scoped declaration privacy:") {
-        comboBox(FileScopedDeclarationPrivacy.AccessLevel.values())
-            .bindItem(
-                getter = {
-                  configuration.fileScopedDeclarationPrivacy?.accessLevel
-                      ?: defaultConfiguration.fileScopedDeclarationPrivacy!!.accessLevel
-                },
-                setter = {
-                  if (it != null) {
-                    configuration.fileScopedDeclarationPrivacy = FileScopedDeclarationPrivacy(it)
-                  }
-                })
-      }
+  }
+
+  private fun lineBreaksPanel(): DialogPanel = panel {
+    row {
+      checkBox("Respects existing line breaks")
+          .bindSelected(
+              getter = {
+                configuration.respectsExistingLineBreaks
+                    ?: defaultConfiguration.respectsExistingLineBreaks!!
+              },
+              setter = { configuration.respectsExistingLineBreaks = it })
+    }
+    row {
+      checkBox("Line break before control flow keywords")
+          .bindSelected(
+              getter = {
+                configuration.lineBreakBeforeControlFlowKeywords
+                    ?: defaultConfiguration.lineBreakBeforeControlFlowKeywords!!
+              },
+              setter = { configuration.lineBreakBeforeControlFlowKeywords = it })
+    }
+    row {
+      checkBox("Line break before each argument")
+          .bindSelected(
+              getter = {
+                configuration.lineBreakBeforeEachArgument
+                    ?: defaultConfiguration.lineBreakBeforeEachArgument!!
+              },
+              setter = { configuration.lineBreakBeforeEachArgument = it })
+    }
+    row {
+      checkBox("Line break before each generic requirement")
+          .bindSelected(
+              getter = {
+                configuration.lineBreakBeforeEachGenericRequirement
+                    ?: defaultConfiguration.lineBreakBeforeEachGenericRequirement!!
+              },
+              setter = { configuration.lineBreakBeforeEachGenericRequirement = it })
+    }
+    row {
+      checkBox("Prioritize keeping function output together")
+          .bindSelected(
+              getter = {
+                configuration.prioritizeKeepingFunctionOutputTogether
+                    ?: defaultConfiguration.prioritizeKeepingFunctionOutputTogether!!
+              },
+              setter = { configuration.prioritizeKeepingFunctionOutputTogether = it })
+    }
+    row {
+      checkBox("Line break around multiline expression chain components")
+          .bindSelected(
+              getter = {
+                configuration.lineBreakAroundMultilineExpressionChainComponents
+                    ?: defaultConfiguration.lineBreakAroundMultilineExpressionChainComponents!!
+              },
+              setter = { configuration.lineBreakAroundMultilineExpressionChainComponents = it })
+    }
+    row("Maximum blank lines:") {
+      intTextField(0..10000)
+          .columns(1)
+          .bindIntText(
+              getter = {
+                configuration.maximumBlankLines ?: defaultConfiguration.maximumBlankLines!!
+              },
+              setter = { configuration.maximumBlankLines = it })
+    }
+  }
+
+  private fun otherPanel(): DialogPanel = panel {
+    row("File scoped declaration privacy:") {
+      comboBox(FileScopedDeclarationPrivacy.AccessLevel.values())
+          .bindItem(
+              getter = {
+                configuration.fileScopedDeclarationPrivacy?.accessLevel
+                    ?: defaultConfiguration.fileScopedDeclarationPrivacy!!.accessLevel
+              },
+              setter = {
+                if (it != null) {
+                  configuration.fileScopedDeclarationPrivacy = FileScopedDeclarationPrivacy(it)
+                }
+              })
     }
   }
 
@@ -285,10 +287,21 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           registerDisposable(it)
           tabbedPane.add("Settings", it, scrollPane = true)
         }
-    formattingPanel =
-        formattingPanel().also {
+    tabsAndIndentsPanel =
+        tabsAndIndentsPanel().also {
           registerDisposable(it)
-          tabbedPane.add("Formatting", it, scrollPane = true)
+          tabbedPane.add("Tabs and Indents", it, scrollPane = true)
+        }
+
+    lineBreaksPanel =
+        lineBreaksPanel().also {
+          registerDisposable(it)
+          tabbedPane.add("Line breaks", it, scrollPane = true)
+        }
+    otherPanel =
+        otherPanel().also {
+          registerDisposable(it)
+          tabbedPane.add("Other", it, scrollPane = true)
         }
     rulesPanel =
         rulesPanel().also {
@@ -323,20 +336,28 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
 
   override fun reset() {
     settingsPanel.reset()
-    formattingPanel.reset()
+    tabsAndIndentsPanel.reset()
+    lineBreaksPanel().reset()
+    otherPanel().reset()
     rulesPanel.reset()
   }
 
   override fun apply() {
     settingsPanel.apply()
-    formattingPanel.apply()
+    tabsAndIndentsPanel.apply()
+    lineBreaksPanel.reset()
+    otherPanel.reset()
     rulesPanel.apply()
 
     writeConfiguration()
   }
 
   override fun isModified() =
-      settingsPanel.isModified() || formattingPanel.isModified() || rulesPanel.isModified()
+      settingsPanel.isModified() ||
+          tabsAndIndentsPanel.isModified() ||
+          lineBreaksPanel.isModified() ||
+          otherPanel.isModified() ||
+          rulesPanel.isModified()
 
   override fun getDisplayName() = "swift-format Settings"
 
