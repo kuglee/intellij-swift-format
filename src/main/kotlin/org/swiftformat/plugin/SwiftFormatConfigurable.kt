@@ -342,15 +342,15 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
 
   override fun reset() {
     tabsAndIndentsPanel.reset()
-    lineBreaksPanel().reset()
-    otherPanel().reset()
+    lineBreaksPanel.reset()
+    otherPanel.reset()
     rulesPanel.reset()
   }
 
   override fun apply() {
     tabsAndIndentsPanel.apply()
-    lineBreaksPanel.reset()
-    otherPanel.reset()
+    lineBreaksPanel.apply()
+    otherPanel.apply()
     rulesPanel.apply()
 
     writeConfiguration()
