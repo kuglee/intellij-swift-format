@@ -298,10 +298,15 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
                 })
       }
       row("Location:") {
-        pathFieldPlusAutoDiscoverButton(swiftFormatTool) { it.bindText(settings::swiftFormatPath) }
-      }
-      row { button("Restore Defaults") { restoreDefaultConfiguration() } }
+            pathFieldPlusAutoDiscoverButton(swiftFormatTool) {
+              it.bindText(settings::swiftFormatPath)
+            }
+          }
           .bottomGap(BottomGap.SMALL)
+      row {
+        link("Restore Defaults") { restoreDefaultConfiguration() }
+            .horizontalAlign(HorizontalAlign.RIGHT)
+      }
       row {
             cell(tabbedPane)
                 .horizontalAlign(HorizontalAlign.FILL)
