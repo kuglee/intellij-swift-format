@@ -33,6 +33,7 @@ import com.intellij.ui.dsl.gridLayout.HorizontalAlign
 import com.intellij.ui.dsl.gridLayout.VerticalAlign
 import com.intellij.util.io.exists
 import com.intellij.util.ui.JBEmptyBorder
+import java.awt.Container
 import java.awt.Dimension
 import javax.swing.JComponent
 import kotlinx.serialization.decodeFromString
@@ -47,10 +48,7 @@ private val log = Logger.getInstance("org.swiftformat.plugin.SwiftFormatConfigur
 class SwiftFormatConfigurable(private val project: Project) : Configurable, Disposable {
   private val settings = SwiftFormatSettings.getInstance(project)
   private var configuration: Configuration
-  private lateinit var tabsAndIndentsPanel: DialogPanel
-  private lateinit var lineBreaksPanel: DialogPanel
-  private lateinit var otherPanel: DialogPanel
-  private lateinit var rulesPanel: DialogPanel
+  private lateinit var mainPanel: DialogPanel
   private lateinit var restoreDefaultsButton: Cell<ActionLink>
 
   init {
@@ -85,6 +83,40 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
         else component)
   }
 
+  private fun DialogPanel.applyRecursively() {
+    fun applyRecursively(container: Container) {
+      (container as? DialogPanel)?.apply()
+      container.components.forEach {
+        (it as? DialogPanel)?.apply()
+        applyRecursively(it as Container)
+      }
+    }
+
+    applyRecursively(this)
+  }
+
+  private fun DialogPanel.resetRecursively() {
+    fun resetRecursively(container: Container) {
+      (container as? DialogPanel)?.reset()
+      container.components.forEach {
+        (it as? DialogPanel)?.reset()
+        resetRecursively(it as Container)
+      }
+    }
+
+    resetRecursively(this)
+  }
+
+  private fun DialogPanel.isModifiedRecursive(): Boolean {
+    fun isModifiedRecursive(container: Container): Boolean =
+        (container is DialogPanel && container.isModified()) ||
+            container.components.any {
+              (it is DialogPanel && it.isModified()) || isModifiedRecursive(it as Container)
+            }
+
+    return isModifiedRecursive(this)
+  }
+
   private fun restoreDefaultConfiguration() {
     restoreDefaultsButton.visible(false)
 
@@ -92,6 +124,26 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
     configuration = defaultConfiguration.copy()
     reset()
     configuration = oldConfiguration
+  }
+
+  private fun settingsPanel(): DialogPanel = panel {
+    row {
+      checkBox("Enable swift-format")
+          .bindSelected(
+              getter = settings::isEnabled,
+              setter = {
+                settings.setEnabled(
+                    if (it) SwiftFormatSettings.EnabledState.ENABLED else getDisabledState())
+              })
+      restoreDefaultsButton =
+          link("Restore Defaults") { restoreDefaultConfiguration() }
+              .bold()
+              .horizontalAlign(HorizontalAlign.RIGHT)
+              .visible(!configuration.isDefault())
+    }
+    row("Location:") {
+      pathFieldPlusAutoDiscoverButton(swiftFormatTool) { it.bindText(settings::swiftFormatPath) }
+    }
   }
 
   private fun tabsAndIndentsPanel(): DialogPanel = panel {
@@ -267,60 +319,38 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   }
 
   override fun createComponent(): JComponent {
-    val tabbedPane = JBTabbedPane()
-
-    tabsAndIndentsPanel =
-        tabsAndIndentsPanel().also {
-          registerDisposable(it)
-          tabbedPane.add("Tabs and Indents", it, scrollPane = true)
-        }
-
-    lineBreaksPanel =
-        lineBreaksPanel().also {
-          registerDisposable(it)
-          tabbedPane.add("Line breaks", it, scrollPane = true)
-        }
-    otherPanel =
-        otherPanel().also {
-          registerDisposable(it)
-          tabbedPane.add("Other", it, scrollPane = true)
-        }
-    rulesPanel =
-        rulesPanel().also {
-          registerDisposable(it)
-          tabbedPane.add("Rules", it, scrollPane = true)
-        }
-
-    return panel {
-      row {
-        checkBox("Enable swift-format")
-            .bindSelected(
-                getter = settings::isEnabled,
-                setter = {
-                  settings.setEnabled(
-                      if (it) SwiftFormatSettings.EnabledState.ENABLED else getDisabledState())
-                })
-        restoreDefaultsButton =
-            link("Restore Defaults") { restoreDefaultConfiguration() }
-                .bold()
-                .horizontalAlign(HorizontalAlign.RIGHT)
-                .visible(!configuration.isDefault())
-      }
-      row("Location:") {
-            pathFieldPlusAutoDiscoverButton(swiftFormatTool) {
-              it.bindText(settings::swiftFormatPath)
+    val panels =
+        mapOf(
+            "Tabs and Indents" to tabsAndIndentsPanel(),
+            "Line breaks" to lineBreaksPanel(),
+            "Other" to otherPanel(),
+            "Rules" to rulesPanel(),
+        )
+    val configurationTabbedPane =
+        JBTabbedPane().apply {
+          panels.forEach { (title, panel) ->
+            panel.also {
+              registerDisposable(it)
+              add(title, it, scrollPane = true)
             }
           }
-          .bottomGap(BottomGap.SMALL)
-      row {
-            cell(tabbedPane)
-                .horizontalAlign(HorizontalAlign.FILL)
-                .verticalAlign(VerticalAlign.FILL)
-                .resizableColumn()
-          }
-          .resizableRow()
-    }
-        .also { it.preferredSize = Dimension(0, 0) }
+        }
+
+    mainPanel =
+        panel {
+          row { cell(settingsPanel()).horizontalAlign(HorizontalAlign.FILL) }
+              .bottomGap(BottomGap.SMALL)
+          row {
+                cell(configurationTabbedPane)
+                    .horizontalAlign(HorizontalAlign.FILL)
+                    .verticalAlign(VerticalAlign.FILL)
+                    .resizableColumn()
+              }
+              .resizableRow()
+        }
+            .also { it.preferredSize = Dimension(0, 0) }
+
+    return mainPanel
   }
 
   private fun Row.pathFieldPlusAutoDiscoverButton(
@@ -346,30 +376,17 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   override fun disposeUIResources() {}
 
   override fun reset() {
-    tabsAndIndentsPanel.reset()
-    lineBreaksPanel.reset()
-    otherPanel.reset()
-    rulesPanel.reset()
-
+    mainPanel.resetRecursively()
     restoreDefaultsButton.visible(!configuration.isDefault())
   }
 
   override fun apply() {
-    tabsAndIndentsPanel.apply()
-    lineBreaksPanel.apply()
-    otherPanel.apply()
-    rulesPanel.apply()
-
+    mainPanel.applyRecursively()
     restoreDefaultsButton.visible(!configuration.isDefault())
-
     writeConfiguration()
   }
 
-  override fun isModified() =
-      tabsAndIndentsPanel.isModified() ||
-          lineBreaksPanel.isModified() ||
-          otherPanel.isModified() ||
-          rulesPanel.isModified()
+  override fun isModified() = mainPanel.isModifiedRecursive()
 
   override fun getDisplayName() = "swift-format Settings"
 
