@@ -49,7 +49,7 @@ val defaultConfiguration =
         maximumBlankLines = 1,
         prioritizeKeepingFunctionOutputTogether = false,
         respectsExistingLineBreaks = true,
-        rules = RuleRegistry.rules,
+        rules = RuleRegistry.defaultRules,
         tabWidth = 8,
         version = 1)
 
@@ -97,7 +97,7 @@ object MutableMapWithNullableBooleanValueSerializer : KSerializer<MutableMap<Str
 @Serializable
 object RuleRegistry {
   val rules: MutableMap<String, Boolean?> = createRulesMap()
-  val defaultRules: Map<String, Boolean?> =
+  val defaultRules: MutableMap<String, Boolean?> =
       createRulesMap(
           allPublicDeclarationsHaveDocumentation = false,
           alwaysUseLowerCamelCase = true,
