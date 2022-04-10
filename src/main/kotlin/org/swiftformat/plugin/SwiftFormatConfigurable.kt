@@ -25,6 +25,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.util.Disposer
+import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.dsl.builder.*
@@ -50,6 +51,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   private lateinit var lineBreaksPanel: DialogPanel
   private lateinit var otherPanel: DialogPanel
   private lateinit var rulesPanel: DialogPanel
+  private lateinit var restoreDefaultsButton: Cell<ActionLink>
 
   init {
     Disposer.register(project, this)
@@ -84,6 +86,8 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   }
 
   private fun restoreDefaultConfiguration() {
+    restoreDefaultsButton.visible(false)
+
     val oldConfiguration = configuration.copy()
     configuration = defaultConfiguration.copy()
     reset()
@@ -296,6 +300,11 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
                   settings.setEnabled(
                       if (it) SwiftFormatSettings.EnabledState.ENABLED else getDisabledState())
                 })
+        restoreDefaultsButton =
+            link("Restore Defaults") { restoreDefaultConfiguration() }
+                .bold()
+                .horizontalAlign(HorizontalAlign.RIGHT)
+                .visible(!configuration.isDefault())
       }
       row("Location:") {
             pathFieldPlusAutoDiscoverButton(swiftFormatTool) {
@@ -303,10 +312,6 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
             }
           }
           .bottomGap(BottomGap.SMALL)
-      row {
-        link("Restore Defaults") { restoreDefaultConfiguration() }
-            .horizontalAlign(HorizontalAlign.RIGHT)
-      }
       row {
             cell(tabbedPane)
                 .horizontalAlign(HorizontalAlign.FILL)
@@ -345,6 +350,8 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
     lineBreaksPanel.reset()
     otherPanel.reset()
     rulesPanel.reset()
+
+    restoreDefaultsButton.visible(!configuration.isDefault())
   }
 
   override fun apply() {
@@ -352,6 +359,8 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
     lineBreaksPanel.apply()
     otherPanel.apply()
     rulesPanel.apply()
+
+    restoreDefaultsButton.visible(!configuration.isDefault())
 
     writeConfiguration()
   }

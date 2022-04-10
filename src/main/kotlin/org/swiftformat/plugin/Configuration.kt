@@ -32,7 +32,52 @@ data class Configuration(
     var rules: MutableMap<String, Boolean?>? = null,
     var tabWidth: Int? = null,
     var version: Int? = null,
-)
+) {
+  fun isDefault(): Boolean {
+    fun isRuleDefault(): Boolean {
+      var returnValue = true
+      if (rules != null) {
+        for ((key, value) in rules!!.filterKeys { it in RuleRegistry.formatterRulesKeys }) {
+          val defaultValue = RuleRegistry.defaultRules[key] ?: return false
+          returnValue = returnValue && (value == defaultValue)
+          val a = 1
+        }
+      }
+
+      return returnValue
+    }
+
+    return (fileScopedDeclarationPrivacy == null ||
+        fileScopedDeclarationPrivacy == defaultConfiguration.fileScopedDeclarationPrivacy) &&
+        (indentation == null || indentation == defaultConfiguration.indentation) &&
+        (indentConditionalCompilationBlocks == null ||
+            indentConditionalCompilationBlocks ==
+                defaultConfiguration.indentConditionalCompilationBlocks) &&
+        (indentSwitchCaseLabels == null ||
+            indentSwitchCaseLabels == defaultConfiguration.indentSwitchCaseLabels) &&
+        (lineBreakAroundMultilineExpressionChainComponents == null ||
+            lineBreakAroundMultilineExpressionChainComponents ==
+                defaultConfiguration.lineBreakAroundMultilineExpressionChainComponents) &&
+        (lineBreakBeforeControlFlowKeywords == null ||
+            lineBreakBeforeControlFlowKeywords ==
+                defaultConfiguration.lineBreakBeforeControlFlowKeywords) &&
+        (lineBreakBeforeEachArgument == null ||
+            lineBreakBeforeEachArgument == defaultConfiguration.lineBreakBeforeEachArgument) &&
+        (lineBreakBeforeEachGenericRequirement == null ||
+            lineBreakBeforeEachGenericRequirement ==
+                defaultConfiguration.lineBreakBeforeEachGenericRequirement) &&
+        (lineLength == null || lineLength == defaultConfiguration.lineLength) &&
+        (maximumBlankLines == null ||
+            maximumBlankLines == defaultConfiguration.maximumBlankLines) &&
+        (prioritizeKeepingFunctionOutputTogether == null ||
+            prioritizeKeepingFunctionOutputTogether ==
+                defaultConfiguration.prioritizeKeepingFunctionOutputTogether) &&
+        (respectsExistingLineBreaks == null ||
+            respectsExistingLineBreaks == defaultConfiguration.respectsExistingLineBreaks) &&
+        (tabWidth == null || tabWidth == defaultConfiguration.tabWidth) &&
+        isRuleDefault()
+  }
+}
 
 val defaultConfiguration =
     Configuration(
