@@ -117,23 +117,13 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
     return isModifiedRecursive(this)
   }
 
-  private fun isDefaultSettings(): Boolean =
-      configuration.isDefault() &&
-          (settings.swiftFormatPath ==
-              (SwiftSuggest.suggestTools(swiftFormatTool)?.toString() ?: ""))
-
   private fun restoreDefaultConfiguration() {
     restoreDefaultsButton.visible(false)
 
     val oldConfiguration = configuration.copy()
     configuration = defaultConfiguration.copy()
-    val oldSwiftFormatPath = settings.swiftFormatPath
-    settings.swiftFormatPath = SwiftSuggest.suggestTools(swiftFormatTool)?.toString() ?: ""
-
     reset()
-
     configuration = oldConfiguration
-    settings.swiftFormatPath = oldSwiftFormatPath
   }
 
   private fun settingsPanel(): DialogPanel = panel {
@@ -149,7 +139,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           link("Restore Defaults") { restoreDefaultConfiguration() }
               .bold()
               .horizontalAlign(HorizontalAlign.RIGHT)
-              .visible(!isDefaultSettings())
+              .visible(!configuration.isDefault())
     }
     row("Location:") {
       pathFieldPlusAutoDiscoverButton(swiftFormatTool) { it.bindText(settings::swiftFormatPath) }
@@ -387,12 +377,12 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
 
   override fun reset() {
     mainPanel.resetRecursively()
-    restoreDefaultsButton.visible(!isDefaultSettings())
+    restoreDefaultsButton.visible(!configuration.isDefault())
   }
 
   override fun apply() {
     mainPanel.applyRecursively()
-    restoreDefaultsButton.visible(!isDefaultSettings())
+    restoreDefaultsButton.visible(!configuration.isDefault())
     writeConfiguration()
   }
 
