@@ -40,7 +40,6 @@ data class Configuration(
         for ((key, value) in rules!!.filterKeys { it in RuleRegistry.formatterRulesKeys }) {
           val defaultValue = RuleRegistry.defaultRules[key] ?: return false
           returnValue = returnValue && (value == defaultValue)
-          val a = 1
         }
       }
 
