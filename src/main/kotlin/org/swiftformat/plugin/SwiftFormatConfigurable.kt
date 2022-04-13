@@ -25,7 +25,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.util.Disposer
-import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.dsl.builder.*
@@ -49,7 +48,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   private val settings = SwiftFormatSettings.getInstance(project)
   private var configuration: Configuration
   private lateinit var mainPanel: DialogPanel
-  private lateinit var restoreDefaultsButton: Cell<ActionLink>
+  private lateinit var restoreDefaultsButton: Panel
 
   init {
     Disposer.register(project, this)
@@ -86,10 +85,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   private fun DialogPanel.applyRecursively() {
     fun applyRecursively(container: Container) {
       (container as? DialogPanel)?.apply()
-      container.components.forEach {
-        (it as? DialogPanel)?.apply()
-        applyRecursively(it as Container)
-      }
+      container.components.forEach { applyRecursively(it as Container) }
     }
 
     applyRecursively(this)
@@ -98,10 +94,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   private fun DialogPanel.resetRecursively() {
     fun resetRecursively(container: Container) {
       (container as? DialogPanel)?.reset()
-      container.components.forEach {
-        (it as? DialogPanel)?.reset()
-        resetRecursively(it as Container)
-      }
+      container.components.forEach { resetRecursively(it as Container) }
     }
 
     resetRecursively(this)
@@ -110,16 +103,12 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
   private fun DialogPanel.isModifiedRecursive(): Boolean {
     fun isModifiedRecursive(container: Container): Boolean =
         (container is DialogPanel && container.isModified()) ||
-            container.components.any {
-              (it is DialogPanel && it.isModified()) || isModifiedRecursive(it as Container)
-            }
+            container.components.any { isModifiedRecursive(it as Container) }
 
     return isModifiedRecursive(this)
   }
 
   private fun restoreDefaultConfiguration() {
-    restoreDefaultsButton.visible(false)
-
     val oldConfiguration = configuration.copy()
     configuration = Configuration.defaultConfiguration.copy()
     reset()
@@ -135,15 +124,13 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
                 settings.setEnabled(
                     if (it) SwiftFormatSettings.EnabledState.ENABLED else getDisabledState())
               })
-      restoreDefaultsButton =
-          link("Restore Defaults") { restoreDefaultConfiguration() }
-              .bold()
-              .horizontalAlign(HorizontalAlign.RIGHT)
-              .visible(!configuration.isDefault())
     }
     row("Location:") {
-      pathFieldPlusAutoDiscoverButton(swiftFormatTool) { it.bindText(settings::swiftFormatPath) }
-    }
+          pathFieldPlusAutoDiscoverButton(swiftFormatTool) {
+            it.bindText(settings::swiftFormatPath)
+          }
+        }
+        .bottomGap(BottomGap.SMALL)
   }
 
   private fun tabsAndIndentsPanel(): DialogPanel = panel {
@@ -347,7 +334,6 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
     mainPanel =
         panel {
           row { cell(settingsPanel()).horizontalAlign(HorizontalAlign.FILL) }
-              .bottomGap(BottomGap.SMALL)
           row {
                 cell(configurationTabbedPane)
                     .horizontalAlign(HorizontalAlign.FILL)
@@ -355,6 +341,11 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
                     .resizableColumn()
               }
               .resizableRow()
+          restoreDefaultsButton =
+              group(indent = false, topGroupGap = false) {
+                    row { link("Restore Defaults") { restoreDefaultConfiguration() }.bold() }
+                  }
+                  .visible(!configuration.isDefault())
         }
             .also { it.preferredSize = Dimension(0, 0) }
 
@@ -385,16 +376,35 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
 
   override fun reset() {
     mainPanel.resetRecursively()
-    restoreDefaultsButton.visible(!configuration.isDefault())
   }
 
   override fun apply() {
-    mainPanel.applyRecursively()
-    restoreDefaultsButton.visible(!configuration.isDefault())
+    applyConfiguration()
     writeConfiguration()
   }
 
-  override fun isModified() = mainPanel.isModifiedRecursive()
+  private fun applyConfiguration() {
+    mainPanel.applyRecursively()
+  }
+
+  override fun isModified(): Boolean {
+    val isModified = mainPanel.isModifiedRecursive()
+
+    restoreDefaultsButton.visible(!getCurrentUIConfiguration().isDefault())
+
+    return isModified
+  }
+
+  private fun getCurrentUIConfiguration(): Configuration {
+    val oldConfiguration = configuration.deepCopy()
+    applyConfiguration()
+
+    val currentUIConfiguration = configuration
+
+    configuration = oldConfiguration
+
+    return currentUIConfiguration
+  }
 
   override fun getDisplayName() = "swift-format Settings"
 

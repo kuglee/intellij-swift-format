@@ -33,6 +33,10 @@ data class Configuration(
     var tabWidth: Int? = null,
     var version: Int? = null,
 ) {
+  fun deepCopy(): Configuration {
+    return copy(indentation = indentation?.copy(), rules = rules?.toMutableMap())
+  }
+
   fun isDefault(): Boolean {
     fun isRuleDefault(): Boolean {
       var returnValue = true
