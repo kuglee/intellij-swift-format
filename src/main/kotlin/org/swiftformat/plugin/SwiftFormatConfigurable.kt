@@ -121,7 +121,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
     restoreDefaultsButton.visible(false)
 
     val oldConfiguration = configuration.copy()
-    configuration = defaultConfiguration.copy()
+    configuration = Configuration.defaultConfiguration.copy()
     reset()
     configuration = oldConfiguration
   }
@@ -151,16 +151,16 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
       checkBox("Use tab character")
           .bindSelected(
               getter = {
-                (configuration.indentation ?: defaultConfiguration.indentation!!) is
+                (configuration.indentation ?: Configuration.defaultConfiguration.indentation!!) is
                     Indentation.Tabs
               },
               setter = {
                 if (it) {
                   configuration.indentation =
-                      Indentation.Tabs(defaultConfiguration.indentation!!.count)
+                      Indentation.Tabs(Configuration.defaultConfiguration.indentation!!.count)
                 } else {
                   configuration.indentation =
-                      Indentation.Spaces(defaultConfiguration.indentation!!.count)
+                      Indentation.Spaces(Configuration.defaultConfiguration.indentation!!.count)
                 }
               })
     }
@@ -168,7 +168,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
       intTextField(0..10000)
           .columns(1)
           .bindIntText(
-              getter = { configuration.tabWidth ?: defaultConfiguration.tabWidth!! },
+              getter = { configuration.tabWidth ?: Configuration.defaultConfiguration.tabWidth!! },
               setter = { configuration.tabWidth = it })
     }
     row("Indent:") {
@@ -176,13 +176,14 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           .columns(1)
           .bindIntText(
               getter = {
-                configuration.indentation?.count ?: defaultConfiguration.indentation!!.count
+                configuration.indentation?.count
+                    ?: Configuration.defaultConfiguration.indentation!!.count
               },
               setter = {
                 if (configuration.indentation != null) {
                   configuration.indentation!!.count = it
                 } else {
-                  configuration.indentation = defaultConfiguration.indentation
+                  configuration.indentation = Configuration.defaultConfiguration.indentation
                   configuration.indentation!!.count = it
                 }
               })
@@ -193,7 +194,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
             .bindSelected(
                 getter = {
                   configuration.indentConditionalCompilationBlocks
-                      ?: defaultConfiguration.indentConditionalCompilationBlocks!!
+                      ?: Configuration.defaultConfiguration.indentConditionalCompilationBlocks!!
                 },
                 setter = { configuration.indentConditionalCompilationBlocks = it })
       }
@@ -202,7 +203,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
             .bindSelected(
                 getter = {
                   configuration.indentSwitchCaseLabels
-                      ?: defaultConfiguration.indentSwitchCaseLabels!!
+                      ?: Configuration.defaultConfiguration.indentSwitchCaseLabels!!
                 },
                 setter = { configuration.indentSwitchCaseLabels = it })
       }
@@ -211,7 +212,9 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
       intTextField(0..10000)
           .columns(1)
           .bindIntText(
-              getter = { configuration.lineLength ?: defaultConfiguration.lineLength!! },
+              getter = {
+                configuration.lineLength ?: Configuration.defaultConfiguration.lineLength!!
+              },
               setter = { configuration.lineLength = it })
     }
   }
@@ -222,7 +225,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           .bindSelected(
               getter = {
                 configuration.respectsExistingLineBreaks
-                    ?: defaultConfiguration.respectsExistingLineBreaks!!
+                    ?: Configuration.defaultConfiguration.respectsExistingLineBreaks!!
               },
               setter = { configuration.respectsExistingLineBreaks = it })
     }
@@ -231,7 +234,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           .bindSelected(
               getter = {
                 configuration.lineBreakBeforeControlFlowKeywords
-                    ?: defaultConfiguration.lineBreakBeforeControlFlowKeywords!!
+                    ?: Configuration.defaultConfiguration.lineBreakBeforeControlFlowKeywords!!
               },
               setter = { configuration.lineBreakBeforeControlFlowKeywords = it })
     }
@@ -240,7 +243,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           .bindSelected(
               getter = {
                 configuration.lineBreakBeforeEachArgument
-                    ?: defaultConfiguration.lineBreakBeforeEachArgument!!
+                    ?: Configuration.defaultConfiguration.lineBreakBeforeEachArgument!!
               },
               setter = { configuration.lineBreakBeforeEachArgument = it })
     }
@@ -249,7 +252,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           .bindSelected(
               getter = {
                 configuration.lineBreakBeforeEachGenericRequirement
-                    ?: defaultConfiguration.lineBreakBeforeEachGenericRequirement!!
+                    ?: Configuration.defaultConfiguration.lineBreakBeforeEachGenericRequirement!!
               },
               setter = { configuration.lineBreakBeforeEachGenericRequirement = it })
     }
@@ -258,7 +261,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           .bindSelected(
               getter = {
                 configuration.prioritizeKeepingFunctionOutputTogether
-                    ?: defaultConfiguration.prioritizeKeepingFunctionOutputTogether!!
+                    ?: Configuration.defaultConfiguration.prioritizeKeepingFunctionOutputTogether!!
               },
               setter = { configuration.prioritizeKeepingFunctionOutputTogether = it })
     }
@@ -267,7 +270,8 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           .bindSelected(
               getter = {
                 configuration.lineBreakAroundMultilineExpressionChainComponents
-                    ?: defaultConfiguration.lineBreakAroundMultilineExpressionChainComponents!!
+                    ?: Configuration.defaultConfiguration
+                        .lineBreakAroundMultilineExpressionChainComponents!!
               },
               setter = { configuration.lineBreakAroundMultilineExpressionChainComponents = it })
     }
@@ -276,7 +280,8 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           .columns(1)
           .bindIntText(
               getter = {
-                configuration.maximumBlankLines ?: defaultConfiguration.maximumBlankLines!!
+                configuration.maximumBlankLines
+                    ?: Configuration.defaultConfiguration.maximumBlankLines!!
               },
               setter = { configuration.maximumBlankLines = it })
     }
@@ -288,7 +293,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
           .bindItem(
               getter = {
                 configuration.fileScopedDeclarationPrivacy?.accessLevel
-                    ?: defaultConfiguration.fileScopedDeclarationPrivacy!!.accessLevel
+                    ?: Configuration.defaultConfiguration.fileScopedDeclarationPrivacy!!.accessLevel
               },
               setter = {
                 if (it != null) {

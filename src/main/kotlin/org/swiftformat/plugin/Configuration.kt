@@ -78,7 +78,10 @@ data class Configuration(
   }
 }
 
-val defaultConfiguration =
+val Configuration.Companion.defaultConfiguration
+  get() = org.swiftformat.plugin.defaultConfiguration
+
+private val defaultConfiguration =
     Configuration(
         fileScopedDeclarationPrivacy =
             FileScopedDeclarationPrivacy(FileScopedDeclarationPrivacy.AccessLevel.private),
