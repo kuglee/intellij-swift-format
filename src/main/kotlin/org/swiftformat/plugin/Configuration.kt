@@ -82,7 +82,7 @@ val defaultConfiguration =
     Configuration(
         fileScopedDeclarationPrivacy =
             FileScopedDeclarationPrivacy(FileScopedDeclarationPrivacy.AccessLevel.private),
-        indentation = Spaces(2),
+        indentation = Indentation.Spaces(2),
         indentConditionalCompilationBlocks = true,
         indentSwitchCaseLabels = false,
         lineBreakAroundMultilineExpressionChainComponents = false,
@@ -108,19 +108,25 @@ data class FileScopedDeclarationPrivacy(var accessLevel: AccessLevel) {
 }
 
 @Serializable(with = IdentationSerializer::class)
-sealed class Indentation {
-  abstract var count: Int
+sealed class Indentation(open var count: Int) {
+  @Suppress("Unused") private constructor() : this(-1)
+
+  @Serializable
+  data class Spaces(@SerialName("spaces") override var count: Int) : Indentation(count)
+  @Serializable data class Tabs(@SerialName("tabs") override var count: Int) : Indentation(count)
 }
 
-@Serializable data class Spaces(@SerialName("spaces") override var count: Int) : Indentation()
-
-@Serializable data class Tabs(@SerialName("tabs") override var count: Int) : Indentation()
+fun Indentation.copy(count: Int = this.count): Indentation =
+    when (this) {
+      is Indentation.Spaces -> this.copy(count)
+      is Indentation.Tabs -> this.copy(count)
+    }
 
 object IdentationSerializer : JsonContentPolymorphicSerializer<Indentation>(Indentation::class) {
   override fun selectDeserializer(element: JsonElement) =
       when {
-        "tabs" in element.jsonObject -> Tabs.serializer()
-        else -> Spaces.serializer()
+        "tabs" in element.jsonObject -> Indentation.Tabs.serializer()
+        else -> Indentation.Spaces.serializer()
       }
 }
 
