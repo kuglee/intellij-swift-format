@@ -28,12 +28,14 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.dsl.builder.*
+import com.intellij.ui.dsl.gridLayout.Gaps
 import com.intellij.ui.dsl.gridLayout.HorizontalAlign
 import com.intellij.ui.dsl.gridLayout.VerticalAlign
 import com.intellij.util.io.exists
 import com.intellij.util.ui.JBEmptyBorder
 import java.awt.Container
 import java.awt.Dimension
+import java.awt.Insets
 import javax.swing.JComponent
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -44,11 +46,13 @@ const val swiftFormatTool = "swift-format"
 private val log = Logger.getInstance("org.swiftformat.plugin.SwiftFormatConfigurable")
 
 @Suppress("UnstableApiUsage", "DialogTitleCapitalization")
-class SwiftFormatConfigurable(private val project: Project) : Configurable, Disposable {
+class SwiftFormatConfigurable(private val project: Project) :
+    Configurable, Configurable.NoMargin, Disposable {
   private val settings = SwiftFormatSettings.getInstance(project)
   private var configuration: Configuration
   private lateinit var mainPanel: DialogPanel
   private lateinit var restoreDefaultsButton: Panel
+  private val mainPanelInsets = Insets(5, 16, 10, 16)
 
   init {
     Disposer.register(project, this)
@@ -72,7 +76,11 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
         if (scrollPane)
             panel {
               row {
-                    cell(component, JBScrollPane(component).also { it.border = JBEmptyBorder(0) })
+                    cell(
+                            component,
+                            JBScrollPane(component).also {
+                              it.border = JBEmptyBorder(0, 13, 0, 13)
+                            })
                         .horizontalAlign(HorizontalAlign.FILL)
                         .verticalAlign(VerticalAlign.FILL)
                         .resizableColumn()
@@ -333,7 +341,11 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
 
     mainPanel =
         panel {
-          row { cell(settingsPanel()).horizontalAlign(HorizontalAlign.FILL) }
+          row {
+            cell(settingsPanel())
+                .horizontalAlign(HorizontalAlign.FILL)
+                .customize(Gaps(left = mainPanelInsets.left, right = mainPanelInsets.right))
+          }
           row {
                 cell(configurationTabbedPane)
                     .horizontalAlign(HorizontalAlign.FILL)
@@ -343,11 +355,18 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
               .resizableRow()
           restoreDefaultsButton = panel {
             separator()
-            row { link("Restore Defaults") { restoreDefaultConfiguration() }.bold() }
+            row {
+                  link("Restore Defaults") { restoreDefaultConfiguration() }
+                      .bold()
+                      .customize(Gaps(6, mainPanelInsets.left, 6, mainPanelInsets.right))
+                }
                 .visible(!configuration.isDefault())
           }
         }
-            .also { it.preferredSize = Dimension(0, 0) }
+            .also {
+              it.border = JBEmptyBorder(mainPanelInsets.top, 0, mainPanelInsets.bottom, 0)
+              it.preferredSize = Dimension(0, 0)
+            }
 
     return mainPanel
   }
