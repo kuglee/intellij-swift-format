@@ -72,9 +72,7 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
         if (scrollPane)
             panel {
               row {
-                    cell(
-                            component,
-                            JBScrollPane(component).also { it.border = JBUI.Borders.empty(0) })
+                    cell(component, JBScrollPane(component).also { it.border = JBEmptyBorder(0) })
                         .horizontalAlign(HorizontalAlign.FILL)
                         .verticalAlign(VerticalAlign.FILL)
                         .resizableColumn()
