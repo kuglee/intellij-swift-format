@@ -341,11 +341,11 @@ class SwiftFormatConfigurable(private val project: Project) : Configurable, Disp
                     .resizableColumn()
               }
               .resizableRow()
-          restoreDefaultsButton =
-              group(indent = false, topGroupGap = false) {
-                    row { link("Restore Defaults") { restoreDefaultConfiguration() }.bold() }
-                  }
-                  .visible(!configuration.isDefault())
+          restoreDefaultsButton = panel {
+            separator()
+            row { link("Restore Defaults") { restoreDefaultConfiguration() }.bold() }
+                .visible(!configuration.isDefault())
+          }
         }
             .also { it.preferredSize = Dimension(0, 0) }
 
