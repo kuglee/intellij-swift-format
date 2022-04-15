@@ -73,21 +73,21 @@ class SwiftFormatConfigurable(private val project: Project) :
   private fun JBTabbedPane.add(title: String, component: JComponent, scrollbar: Boolean = false) {
     this.add(
         title,
-        if (scrollbar)
-            panel {
-              row {
-                    cell(
-                            component,
-                            JBScrollPane(component).also {
-                              it.border = JBEmptyBorder(0, 13, 0, 13)
-                            })
-                        .horizontalAlign(HorizontalAlign.FILL)
-                        .verticalAlign(VerticalAlign.FILL)
-                        .resizableColumn()
-                  }
-                  .resizableRow()
-            }
-        else component)
+        if (scrollbar) {
+          panel {
+            row {
+                  cell(
+                          component,
+                          JBScrollPane(component).also { it.border = JBEmptyBorder(0, 13, 0, 13) })
+                      .horizontalAlign(HorizontalAlign.FILL)
+                      .verticalAlign(VerticalAlign.FILL)
+                      .resizableColumn()
+                }
+                .resizableRow()
+          }
+        } else {
+          panel { row { cell(component).horizontalAlign(HorizontalAlign.FILL).resizableColumn() } }
+        })
   }
 
   private fun DialogPanel.applyRecursively() {
