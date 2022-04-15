@@ -70,10 +70,10 @@ class SwiftFormatConfigurable(private val project: Project) :
         .horizontalAlign(HorizontalAlign.FILL)
   }
 
-  private fun JBTabbedPane.add(title: String, component: JComponent, scrollPane: Boolean = false) {
+  private fun JBTabbedPane.add(title: String, component: JComponent, scrollbar: Boolean = false) {
     this.add(
         title,
-        if (scrollPane)
+        if (scrollbar)
             panel {
               row {
                     cell(
@@ -334,7 +334,7 @@ class SwiftFormatConfigurable(private val project: Project) :
           panels.forEach { (title, panel) ->
             panel.also {
               registerDisposable(it)
-              add(title, it, scrollPane = true)
+              add(title, it, scrollbar = true)
             }
           }
         }
