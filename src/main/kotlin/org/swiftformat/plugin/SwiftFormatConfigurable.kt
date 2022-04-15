@@ -34,20 +34,20 @@ import com.intellij.ui.dsl.gridLayout.VerticalAlign
 import com.intellij.util.io.exists
 import com.intellij.util.ui.JBEmptyBorder
 import java.awt.Container
-import java.awt.Dimension
 import java.awt.Insets
 import javax.swing.JComponent
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.swiftformat.plugin.utils.SwiftSuggest
+import java.awt.Dimension
 
 const val swiftFormatTool = "swift-format"
 private val log = Logger.getInstance("org.swiftformat.plugin.SwiftFormatConfigurable")
 
 @Suppress("UnstableApiUsage", "DialogTitleCapitalization")
 class SwiftFormatConfigurable(private val project: Project) :
-    Configurable, Configurable.NoMargin, Disposable {
+    Configurable, Configurable.NoMargin, Configurable.NoScroll, Disposable {
   private val settings = SwiftFormatSettings.getInstance(project)
   private var configuration: Configuration
   private lateinit var mainPanel: DialogPanel
@@ -76,9 +76,7 @@ class SwiftFormatConfigurable(private val project: Project) :
         if (scrollbar) {
           panel {
             row {
-                  cell(
-                          component,
-                          JBScrollPane(component).also { it.border = JBEmptyBorder(0, 13, 0, 13) })
+                  cell(component, JBScrollPane(component).also { it.border = JBEmptyBorder(0) })
                       .horizontalAlign(HorizontalAlign.FILL)
                       .verticalAlign(VerticalAlign.FILL)
                       .resizableColumn()
@@ -331,9 +329,12 @@ class SwiftFormatConfigurable(private val project: Project) :
         )
     val configurationTabbedPane =
         JBTabbedPane().apply {
+          tabComponentInsets = Insets(0, 0, 0, 0)
+
           panels.forEach { (title, panel) ->
             panel.also {
               registerDisposable(it)
+              it.border = JBEmptyBorder(5, mainPanelInsets.left, 5, mainPanelInsets.right)
               add(title, it, scrollbar = true)
             }
           }
