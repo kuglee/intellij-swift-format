@@ -49,14 +49,13 @@ private val log = Logger.getInstance("org.swiftformat.plugin.SwiftFormatConfigur
 class SwiftFormatConfigurable(private val project: Project) :
     Configurable, Configurable.NoMargin, Configurable.NoScroll, Disposable {
   private val settings = SwiftFormatSettings.getInstance(project)
-  private var configuration: Configuration
+  private var configuration = readConfiguration() ?: Configuration()
   private lateinit var mainPanel: DialogPanel
   private lateinit var restoreDefaultsButton: Panel
   private val mainPanelInsets = Insets(5, 16, 10, 16)
 
   init {
     Disposer.register(project, this)
-    configuration = readConfiguration() ?: Configuration()
   }
 
   private fun Row.toolPathTextField(programName: String): Cell<TextFieldWithBrowseButton> {
@@ -132,7 +131,7 @@ class SwiftFormatConfigurable(private val project: Project) :
               })
     }
     row("Location:") {
-          pathFieldPlusAutoDiscoverButton(swiftFormatTool) {
+          pathFieldWithAutoDiscoverButton(swiftFormatTool) {
             it.bindText(settings::swiftFormatPath)
           }
         }
@@ -372,7 +371,7 @@ class SwiftFormatConfigurable(private val project: Project) :
     return mainPanel
   }
 
-  private fun Row.pathFieldPlusAutoDiscoverButton(
+  private fun Row.pathFieldWithAutoDiscoverButton(
       executableName: String,
       fieldCallback: (Cell<TextFieldWithBrowseButton>) -> Unit
   ): Panel {

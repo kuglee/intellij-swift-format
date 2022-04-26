@@ -68,8 +68,8 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
   }
 
   companion object {
-    fun getInstance(project: Project?): SwiftFormatSettings {
-      return project!!.getService(SwiftFormatSettings::class.java)
+    fun getInstance(project: Project): SwiftFormatSettings {
+      return project.getService(SwiftFormatSettings::class.java)
     }
 
     fun getSwiftFormatConfigFilePath(project: Project): Path? {
