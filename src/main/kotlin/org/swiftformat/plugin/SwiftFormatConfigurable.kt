@@ -143,8 +143,9 @@ class SwiftFormatConfigurable(private val project: Project) :
       checkBox("Use tab character")
           .bindSelected(
               getter = {
-                (configuration.indentation ?: Configuration.defaultConfiguration.indentation!!) is
-                    Indentation.Tabs
+                val indentation =
+                    configuration.indentation ?: Configuration.defaultConfiguration.indentation!!
+                indentation is Indentation.Tabs
               },
               setter = {
                 if (it) {
