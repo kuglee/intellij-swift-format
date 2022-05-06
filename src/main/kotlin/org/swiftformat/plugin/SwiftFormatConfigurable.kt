@@ -51,7 +51,7 @@ class SwiftFormatConfigurable(private val project: Project) :
   private val settings = SwiftFormatSettings.getInstance(project)
   private var configuration = readConfiguration() ?: Configuration()
   private lateinit var mainPanel: DialogPanel
-  private lateinit var restoreDefaultsButton: Panel
+  private lateinit var restoreDefaultsPanel: Panel
   private val mainPanelInsets = Insets(5, 16, 10, 16)
 
   init {
@@ -353,15 +353,15 @@ class SwiftFormatConfigurable(private val project: Project) :
                     .resizableColumn()
               }
               .resizableRow()
-          restoreDefaultsButton = panel {
+          restoreDefaultsPanel = panel {
             separator()
             row {
                   link("Restore Defaults") { restoreDefaultConfiguration() }
                       .bold()
                       .customize(Gaps(6, mainPanelInsets.left, 6, mainPanelInsets.right))
                 }
-                .visible(!configuration.isDefault())
           }
+            .visible(!configuration.isDefault())
         }
             .also {
               it.border = JBEmptyBorder(mainPanelInsets.top, 0, mainPanelInsets.bottom, 0)
@@ -409,7 +409,7 @@ class SwiftFormatConfigurable(private val project: Project) :
   override fun isModified(): Boolean {
     val isModified = mainPanel.isModifiedRecursive()
 
-    restoreDefaultsButton.visible(!getCurrentUIConfiguration().isDefault())
+    restoreDefaultsPanel.visible(!getCurrentUIConfiguration().isDefault())
 
     return isModified
   }
