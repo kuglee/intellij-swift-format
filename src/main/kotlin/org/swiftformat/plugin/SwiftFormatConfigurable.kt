@@ -176,8 +176,8 @@ class SwiftFormatConfigurable(private val project: Project) :
                 if (configuration.indentation != null) {
                   configuration.indentation!!.count = it
                 } else {
-                  configuration.indentation = Configuration.defaultConfiguration.indentation
-                  configuration.indentation!!.count = it
+                  configuration.indentation =
+                      Configuration.defaultConfiguration.indentation!!.copy(it)
                 }
               })
     }
@@ -306,7 +306,7 @@ class SwiftFormatConfigurable(private val project: Project) :
                       ?: RuleRegistry.defaultRules.getOrDefault(key, false) ?: false
                 },
                 setter = {
-                  configuration.rules = configuration.rules ?: RuleRegistry.rules
+                  configuration.rules = configuration.rules ?: RuleRegistry.rules.toMutableMap()
                   configuration.rules!![key] = it
                 })
       }
