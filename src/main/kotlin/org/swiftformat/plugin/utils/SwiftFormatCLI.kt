@@ -30,9 +30,13 @@ class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
             "--ignore-unparsable-files",
         )
 
-    val configFilePath = SwiftFormatSettings.getSwiftFormatConfigFilePath(project)
-    if (configFilePath != null && configFilePath.exists()) {
-      arguments.addAll(listOf("--configuration", configFilePath.toString()))
+    val settings = SwiftFormatSettings.getInstance(project)
+
+    if (settings.useCustomConfiguration) {
+      val configFilePath = Path.of(settings.getSwiftFormatConfigFilePath(project))
+      if (configFilePath.exists()) {
+        arguments.addAll(listOf("--configuration", configFilePath.toString()))
+      }
     }
 
     return GeneralCommandLine(swiftFormatExecutablePath)

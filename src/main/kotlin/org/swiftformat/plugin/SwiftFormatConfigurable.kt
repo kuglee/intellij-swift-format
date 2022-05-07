@@ -17,29 +17,51 @@
 
 package org.swiftformat.plugin
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.actionSystem.impl.ActionButton
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.Configurable
+import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.DialogPanel
-import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.roots.ProjectFileIndex
+import com.intellij.openapi.ui.*
+import com.intellij.openapi.ui.popup.Balloon
+import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.openapi.ui.popup.JBPopupListener
+import com.intellij.openapi.ui.popup.LightweightWindowEvent
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.IconLoader
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.project.stateStore
+import com.intellij.ui.LayeredIcon
+import com.intellij.ui.awt.RelativePoint
+import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.dsl.gridLayout.Gaps
 import com.intellij.ui.dsl.gridLayout.HorizontalAlign
 import com.intellij.ui.dsl.gridLayout.VerticalAlign
+import com.intellij.ui.popup.PopupState
+import com.intellij.util.PathUtil
 import com.intellij.util.io.exists
-import com.intellij.util.ui.JBEmptyBorder
+import com.intellij.util.ui.*
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.Insets
-import javax.swing.JComponent
+import java.io.File
+import java.nio.file.Path
+import java.util.function.Supplier
+import javax.swing.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.jetbrains.annotations.SystemIndependent
 import org.swiftformat.plugin.utils.SwiftSuggest
 
 const val swiftFormatTool = "swift-format"
@@ -51,12 +73,27 @@ class SwiftFormatConfigurable(private val project: Project) :
   private val settings = SwiftFormatSettings.getInstance(project)
   private var configuration = readConfiguration() ?: Configuration()
   private lateinit var mainPanel: DialogPanel
+  private lateinit var configurationTabbedPane: JBTabbedPane
   private lateinit var restoreDefaultsPanel: Panel
+  private lateinit var popup: DialogPanel
+  private lateinit var storeAsProjectFileCheckBox: Cell<JBCheckBox>
+  private lateinit var useCustomConfigurationCheckBox: Cell<JBCheckBox>
+  private val storeAsFileGearButton = createStoreAsFileGearButton()
   private val mainPanelInsets = Insets(5, 16, 10, 16)
+  private var currentSwiftFormatConfigPath = swiftFormatConfigFolderPath
 
   init {
     Disposer.register(project, this)
   }
+
+  private var swiftFormatConfigFolderPath: String
+    get() = settings.getSwiftFormatConfigFolderPath(project)
+    set(newValue) {
+      settings.setSwiftFormatConfigFolderPath(newValue)
+    }
+
+  private val swiftFormatConfigFilePath: String
+    get() = settings.getSwiftFormatConfigFilePath(project)
 
   private fun Row.toolPathTextField(programName: String): Cell<TextFieldWithBrowseButton> {
     return textFieldWithBrowseButton(
@@ -87,37 +124,31 @@ class SwiftFormatConfigurable(private val project: Project) :
         })
   }
 
-  private fun DialogPanel.applyRecursively() {
-    fun applyRecursively(container: Container) {
-      (container as? DialogPanel)?.apply()
-      container.components.forEach { applyRecursively(it as Container) }
-    }
-
-    applyRecursively(this)
+  private fun Container.resetRecursively() {
+    (this as? DialogPanel)?.reset()
+    components.forEach { (it as? Container)?.resetRecursively() }
   }
 
-  private fun DialogPanel.resetRecursively() {
-    fun resetRecursively(container: Container) {
-      (container as? DialogPanel)?.reset()
-      container.components.forEach { resetRecursively(it as Container) }
-    }
-
-    resetRecursively(this)
+  private fun Container.applyRecursively() {
+    (this as? DialogPanel)?.apply()
+    components.forEach { (it as? Container)?.applyRecursively() }
   }
 
-  private fun DialogPanel.isModifiedRecursive(): Boolean {
-    fun isModifiedRecursive(container: Container): Boolean =
-        (container is DialogPanel && container.isModified()) ||
-            container.components.any { isModifiedRecursive(it as Container) }
-
-    return isModifiedRecursive(this)
-  }
+  private fun Container.isModifiedRecursive(): Boolean =
+      (this is DialogPanel && isModified()) ||
+          components.any { (it as? Container)?.isModifiedRecursive() ?: false }
 
   private fun restoreDefaultConfiguration() {
     val oldConfiguration = configuration.copy()
     configuration = Configuration.defaultConfiguration.copy()
-    reset()
+    resetConfiguration()
     configuration = oldConfiguration
+  }
+
+  private fun restoreDefaultCustomConfiguration() {
+    restoreDefaultConfiguration()
+    storeAsProjectFileCheckBox.component.isSelected = false
+    currentSwiftFormatConfigPath = project.dotIdeaFolderPath
   }
 
   private fun settingsPanel(): DialogPanel = panel {
@@ -136,7 +167,124 @@ class SwiftFormatConfigurable(private val project: Project) :
           }
         }
         .bottomGap(BottomGap.SMALL)
+
+    row {
+      useCustomConfigurationCheckBox =
+          checkBox("Use custom configuration")
+              .bindSelected(settings::useCustomConfiguration)
+              .applyToComponent {
+                addActionListener {
+                  if (!isSelected) {
+                    restoreDefaultCustomConfiguration()
+                  }
+                }
+              }
+      storeAsProjectFileCheckBox =
+          checkBox("Store as project file")
+              .gap(RightGap.SMALL)
+              .visibleIf(useCustomConfigurationCheckBox.selected)
+              .bindSelected(settings::shouldSaveToProject)
+              .applyToComponent {
+                addActionListener {
+                  storeAsFileGearButton.isEnabled = isSelected
+
+                  if (!isSelected || currentSwiftFormatConfigPath.isBlank()) {
+                    currentSwiftFormatConfigPath = project.dotIdeaFolderPath
+                  }
+
+                  if (isSelected) {
+                    manageStorageFileLocation()
+                  }
+                }
+              }
+      cell(
+              storeAsFileGearButton.apply {
+                isEnabled = storeAsProjectFileCheckBox.component.isSelected
+              })
+          .visibleIf(useCustomConfigurationCheckBox.selected)
+    }
   }
+
+  object Icons {
+    val gearWithDropdownIcon = LayeredIcon(AllIcons.General.GearPlain, AllIcons.General.Dropdown)
+    val gearWithDropdownDisabledIcon =
+        LayeredIcon(
+            IconLoader.getDisabledIcon(AllIcons.General.GearPlain),
+            IconLoader.getDisabledIcon(AllIcons.General.Dropdown))
+
+    val gearWithDropdownErrorIcon = LayeredIcon(AllIcons.General.Error, AllIcons.General.Dropdown)
+  }
+
+  private fun createStoreAsFileGearButton(): ActionButton {
+    val state = PopupState.forBalloon()
+    val showStoragePathAction: AnAction =
+        object : DumbAwareAction() {
+          override fun actionPerformed(e: AnActionEvent) {
+            if (!state.isRecentlyHidden) {
+              manageStorageFileLocation(state)
+            }
+          }
+        }
+
+    val presentation = Presentation("Manage File Location")
+    presentation.icon = Icons.gearWithDropdownIcon
+    presentation.disabledIcon = Icons.gearWithDropdownDisabledIcon
+
+    return object :
+        ActionButton(
+            showStoragePathAction,
+            presentation,
+            ActionPlaces.UNKNOWN,
+            ActionToolbar.DEFAULT_MINIMUM_BUTTON_SIZE) {
+      override fun getIcon(): Icon =
+          if (storeAsProjectFileCheckBox.component.isSelected &&
+              getErrorIfBadFolderPathForStoringInArbitraryFile(
+                  project, currentSwiftFormatConfigPath) != null) {
+            Icons.gearWithDropdownErrorIcon
+          } else {
+            super.getIcon()
+          }
+    }
+  }
+
+  private fun manageStorageFileLocation(state: PopupState<Balloon>? = null) {
+    val balloonDisposable = Disposer.newDisposable()
+    val pathToErrorMessage = { path: String? ->
+      getErrorIfBadFolderPathForStoringInArbitraryFile(project, path)
+    }
+
+    var balloon: Balloon? = null
+    popup = popup(pathToErrorMessage, balloonDisposable) { balloon?.hide() }
+    balloon =
+        JBPopupFactory.getInstance()
+            .createBalloonBuilder(popup)
+            .setDialogMode(true)
+            .setBorderInsets(Insets(15, 15, 7, 15))
+            .setFillColor(UIUtil.getPanelBackground())
+            .setHideOnAction(false)
+            .setHideOnLinkClick(false)
+            .setHideOnKeyOutside(false)
+            .setBlockClicksThroughBalloon(true)
+            .setRequestFocus(true)
+            .createBalloon()
+            .apply {
+              setAnimationEnabled(true)
+
+              addListener(
+                  object : JBPopupListener {
+                    override fun onClosed(event: LightweightWindowEvent) {
+                      popup.apply()
+                    }
+                  })
+            }
+
+    state?.prepareToShow(balloon)
+    balloon.show(
+        RelativePoint.getSouthOf(storeAsProjectFileCheckBox.component), Balloon.Position.below)
+  }
+
+  private fun swiftFormatConfigPathIsModified() =
+      swiftFormatConfigFolderPath != currentSwiftFormatConfigPath
 
   private fun tabsAndIndentsPanel(): DialogPanel = panel {
     row {
@@ -327,7 +475,7 @@ class SwiftFormatConfigurable(private val project: Project) :
             "Other" to otherPanel(),
             "Rules" to rulesPanel(),
         )
-    val configurationTabbedPane =
+    configurationTabbedPane =
         JBTabbedPane().apply {
           tabComponentInsets = Insets(0, 0, 0, 0)
 
@@ -343,27 +491,32 @@ class SwiftFormatConfigurable(private val project: Project) :
     mainPanel =
         panel {
               row {
-                cell(settingsPanel())
-                    .horizontalAlign(HorizontalAlign.FILL)
-                    .customize(Gaps(left = mainPanelInsets.left, right = mainPanelInsets.right))
-              }
-              row {
-                    cell(configurationTabbedPane)
+                    cell(settingsPanel())
                         .horizontalAlign(HorizontalAlign.FILL)
-                        .verticalAlign(VerticalAlign.FILL)
-                        .resizableColumn()
+                        .customize(Gaps(left = mainPanelInsets.left, right = mainPanelInsets.right))
                   }
-                  .resizableRow()
-              restoreDefaultsPanel =
-                  panel {
-                        separator()
-                        row {
-                          link("Restore defaults") { restoreDefaultConfiguration() }
-                              .bold()
-                              .customize(Gaps(6, mainPanelInsets.left, 6, mainPanelInsets.right))
+                  .bottomGap(BottomGap.MEDIUM)
+              rowsRange {
+                    row {
+                          cell(configurationTabbedPane)
+                              .horizontalAlign(HorizontalAlign.FILL)
+                              .verticalAlign(VerticalAlign.FILL)
+                              .resizableColumn()
                         }
-                      }
-                      .visible(!configuration.isDefault())
+                        .resizableRow()
+                    restoreDefaultsPanel =
+                        panel {
+                              separator()
+                              row {
+                                link("Restore defaults") { restoreDefaultConfiguration() }
+                                    .bold()
+                                    .customize(
+                                        Gaps(6, mainPanelInsets.left, 6, mainPanelInsets.right))
+                              }
+                            }
+                            .visible(shouldShowRestoreDefaultsButton(configuration))
+                  }
+                  .visibleIf(useCustomConfigurationCheckBox.selected)
             }
             .also {
               it.border = JBEmptyBorder(mainPanelInsets.top, 0, mainPanelInsets.bottom, 0)
@@ -397,21 +550,35 @@ class SwiftFormatConfigurable(private val project: Project) :
 
   override fun reset() {
     mainPanel.resetRecursively()
+    resetSwiftFormatConfigPath()
+  }
+
+  private fun resetSwiftFormatConfigPath() {
+    currentSwiftFormatConfigPath = swiftFormatConfigFolderPath
   }
 
   override fun apply() {
-    applyConfiguration()
+    mainPanel.applyRecursively()
+    applySwiftFormatConfigPath()
     writeConfiguration()
   }
 
   private fun applyConfiguration() {
-    mainPanel.applyRecursively()
+    configurationTabbedPane.applyRecursively()
+  }
+
+  private fun resetConfiguration() {
+    configurationTabbedPane.resetRecursively()
+  }
+
+  private fun applySwiftFormatConfigPath() {
+    swiftFormatConfigFolderPath = currentSwiftFormatConfigPath
   }
 
   override fun isModified(): Boolean {
-    val isModified = mainPanel.isModifiedRecursive()
+    val isModified = mainPanel.isModifiedRecursive() || swiftFormatConfigPathIsModified()
 
-    restoreDefaultsPanel.visible(!getCurrentUIConfiguration().isDefault())
+    restoreDefaultsPanel.visible(shouldShowRestoreDefaultsButton(getCurrentUIConfiguration()))
 
     return isModified
   }
@@ -426,6 +593,10 @@ class SwiftFormatConfigurable(private val project: Project) :
 
     return currentUIConfiguration
   }
+
+  // visibleIf doesn't override visible, so isSelected needs to be checked
+  private fun shouldShowRestoreDefaultsButton(configuration: Configuration): Boolean =
+      useCustomConfigurationCheckBox.component.isSelected && !configuration.isDefault()
 
   override fun getDisplayName() = "swift-format Settings"
 
@@ -443,11 +614,11 @@ class SwiftFormatConfigurable(private val project: Project) :
   }
 
   private fun readConfiguration(): Configuration? {
-    val path = SwiftFormatSettings.getSwiftFormatConfigFilePath(project)
+    val path = File(swiftFormatConfigFilePath)
 
-    return if (path != null && path.exists()) {
+    return if (path.exists()) {
       try {
-        Json.decodeFromString(path.toFile().readText())
+        Json.decodeFromString(path.readText())
       } catch (e: Exception) {
         log.warn(ConfigError.readErrorMessage, e)
         null
@@ -461,16 +632,84 @@ class SwiftFormatConfigurable(private val project: Project) :
     val prettyJson = Json { prettyPrint = true }
 
     val configurationString = prettyJson.encodeToString(configuration)
-    val configFilePath = SwiftFormatSettings.getSwiftFormatConfigFilePath(project)
+    val configFilePath = swiftFormatConfigFilePath
 
     try {
-      configFilePath?.toFile()?.writeText(configurationString)
-          ?: log.error(ConfigError.writeErrorMessage)
+      File(configFilePath).writeText(configurationString)
     } catch (e: Exception) {
       log.error(ConfigError.writeErrorMessage, e)
     }
   }
+
+  private fun popup(
+      pathToErrorMessage: (String?) -> String?,
+      uiDisposable: Disposable,
+      closePopupAction: (() -> Unit)? = null
+  ): DialogPanel =
+      panel {
+            row {
+              configPathTextField(project, pathToErrorMessage, uiDisposable)
+                  .bindText(
+                      getter = ::currentSwiftFormatConfigPath,
+                      setter = { currentSwiftFormatConfigPath = it })
+                  .label("Store configuration file in:", LabelPosition.TOP)
+            }
+            row {
+              button("Done") { closePopupAction?.let { it1 -> it1() } }
+                  .horizontalAlign(HorizontalAlign.RIGHT)
+            }
+          }
+          .apply {
+            isFocusCycleRoot = true
+            focusTraversalPolicy = LayoutFocusTraversalPolicy()
+          }
 }
+
+@Suppress("UnstableApiUsage")
+private fun Row.configPathTextField(
+    project: Project,
+    pathToErrorMessage: (String?) -> String?,
+    uiDisposable: Disposable
+): Cell<TextFieldWithBrowseButton> =
+    textFieldWithBrowseButton(
+            "Select Path",
+            project,
+            object : FileChooserDescriptor(false, true, false, false, false, false) {
+              override fun isFileVisible(file: VirtualFile, showHiddenFiles: Boolean): Boolean {
+                return if (file.path == project.dotIdeaFolderPath) true
+                else file.isDirectory && super.isFileVisible(file, showHiddenFiles)
+              }
+
+              override fun isFileSelectable(file: VirtualFile?): Boolean {
+                if (file == null) {
+                  return false
+                }
+
+                return if (file.path == project.dotIdeaFolderPath) {
+                  true
+                } else {
+                  file.isDirectory &&
+                      super.isFileSelectable(file) &&
+                      ProjectFileIndex.getInstance(project).isInContent(file)
+                }
+              }
+            })
+        .applyToComponent {
+          preferredSize = Dimension(500, preferredSize.height)
+
+          ComponentValidator(uiDisposable)
+              .withValidator(
+                  Supplier {
+                    val errorMessage = pathToErrorMessage(text)
+                    if (errorMessage != null) {
+                      ValidationInfo(errorMessage, this)
+                    } else {
+                      null
+                    }
+                  })
+              .andRegisterOnDocumentListener(textField)
+              .installOn(textField)
+        }
 
 private fun String.separateCamelCase() =
     this.replace("""((?<=\p{Ll})\p{Lu}|(?<!^)\p{Lu}(?=\p{Ll}))""".toRegex(), " $1")
@@ -484,4 +723,57 @@ private fun String.sentenceCase(): String {
 object ConfigError {
   const val readErrorMessage = "Couldn't read configuration from file"
   const val writeErrorMessage = "Couldn't write configuration to file"
+}
+
+val Project.dotIdeaFolderPath
+  get() = stateStore.directoryStorePath.toString()
+
+fun getErrorIfBadFolderPathForStoringInArbitraryFile(
+    project: Project,
+    path: @SystemIndependent String?
+): String? {
+  if (project.dotIdeaFolderPath == path) {
+    return null
+  }
+
+  if (path.isNullOrEmpty()) {
+    return "Path not specified"
+  }
+
+  if (!Path.of(path).exists()) {
+    return "Path does not exist"
+  }
+
+  var file = LocalFileSystem.getInstance().findFileByPath(path)
+  if (file != null && !file.isDirectory) {
+    return "Folder path expected"
+  }
+
+  val folderName = PathUtil.getFileName(path)
+  val parentPath = PathUtil.getParentPath(path)
+  while (file == null && parentPath.isNotEmpty()) {
+    if (!PathUtil.isValidFileName(folderName)) {
+      return "Folder path expected"
+    }
+
+    file = LocalFileSystem.getInstance().findFileByPath(parentPath)
+  }
+
+  if (file == null) {
+    return "Folder must be within the project"
+  }
+
+  if (!file.isDirectory) {
+    return "Folder path expected"
+  }
+
+  return if (ProjectFileIndex.getInstance(project).getContentRootForFile(file, true) == null) {
+    return if (ProjectFileIndex.getInstance(project).getContentRootForFile(file, false) == null) {
+      "Folder must be within the project"
+    } else {
+      "Folder is excluded. Select a folder within the project"
+    }
+  } else {
+    null
+  }
 }

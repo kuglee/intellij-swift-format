@@ -20,7 +20,6 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
-import java.nio.file.Path
 
 const val swiftFormatConfigFilename = ".swift-format"
 
@@ -55,6 +54,33 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
       state.swiftFormatPath = swiftFormatPath
     }
 
+  fun getSwiftFormatConfigFolderPath(project: Project): String =
+      if (getErrorIfBadFolderPathForStoringInArbitraryFile(project, state.swiftFormatConfigPath) ==
+          null)
+          state.swiftFormatConfigPath
+      else project.dotIdeaFolderPath
+
+  fun setSwiftFormatConfigFolderPath(newValue: String) {
+    state.swiftFormatConfigPath = newValue
+  }
+
+  fun getSwiftFormatConfigFilePath(project: Project): String {
+    val configFolderPath = getSwiftFormatConfigFolderPath(project)
+    return "$configFolderPath/$swiftFormatConfigFilename"
+  }
+
+  var useCustomConfiguration: Boolean
+    get() = state.useCustomConfiguration
+    set(newValue) {
+      state.useCustomConfiguration = newValue
+    }
+
+  var shouldSaveToProject: Boolean
+    get() = state.shouldSaveToProject
+    set(shouldSaveToProject) {
+      state.shouldSaveToProject = shouldSaveToProject
+    }
+
   internal enum class EnabledState {
     UNKNOWN,
     ENABLED,
@@ -62,22 +88,16 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
   }
 
   internal class State {
-    var swiftFormatPath: String = ""
-
+    var swiftFormatPath = ""
     var enabled = EnabledState.UNKNOWN
+    var useCustomConfiguration = false
+    var shouldSaveToProject = false
+    var swiftFormatConfigPath: String = ""
   }
 
   companion object {
     fun getInstance(project: Project): SwiftFormatSettings {
       return project.getService(SwiftFormatSettings::class.java)
-    }
-
-    fun getSwiftFormatConfigFilePath(project: Project): Path? {
-      val basePath = project.basePath
-
-      return if (basePath != null) {
-        Path.of("$basePath/$swiftFormatConfigFilename")
-      } else null
     }
   }
 }
