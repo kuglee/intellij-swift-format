@@ -34,13 +34,13 @@ import com.intellij.ui.dsl.gridLayout.VerticalAlign
 import com.intellij.util.io.exists
 import com.intellij.util.ui.JBEmptyBorder
 import java.awt.Container
+import java.awt.Dimension
 import java.awt.Insets
 import javax.swing.JComponent
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.swiftformat.plugin.utils.SwiftSuggest
-import java.awt.Dimension
 
 const val swiftFormatTool = "swift-format"
 private val log = Logger.getInstance("org.swiftformat.plugin.SwiftFormatConfigurable")
@@ -342,28 +342,29 @@ class SwiftFormatConfigurable(private val project: Project) :
 
     mainPanel =
         panel {
-          row {
-            cell(settingsPanel())
-                .horizontalAlign(HorizontalAlign.FILL)
-                .customize(Gaps(left = mainPanelInsets.left, right = mainPanelInsets.right))
-          }
-          row {
-                cell(configurationTabbedPane)
+              row {
+                cell(settingsPanel())
                     .horizontalAlign(HorizontalAlign.FILL)
-                    .verticalAlign(VerticalAlign.FILL)
-                    .resizableColumn()
+                    .customize(Gaps(left = mainPanelInsets.left, right = mainPanelInsets.right))
               }
-              .resizableRow()
-          restoreDefaultsPanel = panel {
-            separator()
-            row {
-                  link("Restore Defaults") { restoreDefaultConfiguration() }
-                      .bold()
-                      .customize(Gaps(6, mainPanelInsets.left, 6, mainPanelInsets.right))
-                }
-          }
-            .visible(!configuration.isDefault())
-        }
+              row {
+                    cell(configurationTabbedPane)
+                        .horizontalAlign(HorizontalAlign.FILL)
+                        .verticalAlign(VerticalAlign.FILL)
+                        .resizableColumn()
+                  }
+                  .resizableRow()
+              restoreDefaultsPanel =
+                  panel {
+                        separator()
+                        row {
+                          link("Restore defaults") { restoreDefaultConfiguration() }
+                              .bold()
+                              .customize(Gaps(6, mainPanelInsets.left, 6, mainPanelInsets.right))
+                        }
+                      }
+                      .visible(!configuration.isDefault())
+            }
             .also {
               it.border = JBEmptyBorder(mainPanelInsets.top, 0, mainPanelInsets.bottom, 0)
               it.preferredSize = Dimension(0, 0)
