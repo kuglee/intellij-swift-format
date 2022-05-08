@@ -33,10 +33,7 @@ dependencies {
 // Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin
 intellij {
   pluginName.set(properties("pluginName"))
-
-  // intellij.version and intellij.localPath should not be specified at the same time.
-  //  version.set(properties("platformVersion"))
-  localPath.set(properties("localPath"))
+  version.set(properties("platformVersion"))
   type.set(properties("platformType"))
 
   // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file.
@@ -129,10 +126,4 @@ tasks {
         listOf(
             properties("pluginVersion").split('-').getOrElse(1) { "default" }.split('.').first()))
   }
-
-  instrumentCode { compilerVersion.set(properties("platformVersion")) }
-
-  runIde { ideDir.set(File(properties("localPath"))) }
-
-  runPluginVerifier { localPaths.set(listOf(File(properties("localPath")))) }
 }

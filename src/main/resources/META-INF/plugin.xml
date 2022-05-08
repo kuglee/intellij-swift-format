@@ -6,7 +6,6 @@
     <description>Enables formatting of Swift source code using swift-format</description>
 
     <depends>com.intellij.modules.platform</depends>
-    <depends>com.intellij.swift.lang</depends>
 
     <applicationListeners>
         <listener
