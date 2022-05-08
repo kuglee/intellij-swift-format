@@ -10,3 +10,8 @@ Librecz. The following sections of the repository contain third-party code, to w
     - License: Apache License 2.0 (license/third_party/google-java-format_LICENSE.txt)
     - Origin: google-java-format, Copyright 2015 Google
       Inc. [https://github.com/google/google-java-format](https://github.com/google/google-java-format)
+
+- Path `src/main/kotlin/org/swiftformat/plugin/SwiftFormatConfigurableStoreAsProjectFileExtension.kt`
+    - License: Apache License 2.0 (license/third_party/intellij-community_LICENSE.txt)
+    - Origin: intellij-community, Copyright 2022 JetBrains s.r.o. and contributors
+      Inc. [https://github.com/JetBrains/intellij-community](https://github.com/JetBrains/intellij-community)
