@@ -28,7 +28,6 @@ import com.intellij.openapi.ui.*
 import com.intellij.openapi.util.Disposer
 import com.intellij.project.stateStore
 import com.intellij.ui.components.JBCheckBox
-import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.dsl.gridLayout.Gaps
@@ -269,7 +268,7 @@ class SwiftFormatConfigurable(val project: Project) :
 
   private fun otherPanel(): DialogPanel = panel {
     row("File scoped declaration privacy:") {
-      comboBox(FileScopedDeclarationPrivacy.AccessLevel.values())
+      comboBox(FileScopedDeclarationPrivacy.AccessLevel.values().asList())
           .bindItem(
               getter = {
                 configuration.fileScopedDeclarationPrivacy?.accessLevel
@@ -488,7 +487,8 @@ private fun JBTabbedPane.add(title: String, component: JComponent, scrollbar: Bo
       if (scrollbar) {
         panel {
           row {
-                cell(component, JBScrollPane(component).also { it.border = JBEmptyBorder(0) })
+                scrollCell(component)
+                    .apply { border = JBEmptyBorder(0) }
                     .horizontalAlign(HorizontalAlign.FILL)
                     .verticalAlign(VerticalAlign.FILL)
                     .resizableColumn()
