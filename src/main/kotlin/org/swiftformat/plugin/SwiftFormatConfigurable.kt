@@ -117,10 +117,30 @@ class SwiftFormatConfigurable(val project: Project) :
                   }
                 }
               }
+
+      val storeAsFileGearButton = createStoreAsFileGearButton()
       storeAsProjectFileCheckBox =
-          createStoreAsProjectFileCheckBox()()
+          checkBox("Store as project file")
+              .customize(Gaps(right = 0))
+              .applyToComponent {
+                addActionListener {
+                  storeAsFileGearButton.isEnabled = isSelected
+
+                  if (!isSelected || currentSwiftFormatConfigPath.isNullOrBlank()) {
+                    currentSwiftFormatConfigPath = project.dotIdeaFolderPath
+                  }
+
+                  if (isSelected) {
+                    manageStorageFileLocation()
+                  }
+                }
+              }
               .visibleIf(useCustomConfigurationCheckBox.selected)
               .bindSelected(settings::shouldSaveToProject)
+      cell(storeAsFileGearButton)
+          .visibleIf(useCustomConfigurationCheckBox.selected)
+          .enabledIf(storeAsProjectFileCheckBox.selected)
+          .customize(Gaps.EMPTY)
     }
   }
 

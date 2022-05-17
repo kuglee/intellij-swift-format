@@ -39,7 +39,6 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.LayeredIcon
 import com.intellij.ui.awt.RelativePoint
-import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.dsl.builder.Row
 import com.intellij.ui.dsl.gridLayout.HorizontalAlign
@@ -62,29 +61,6 @@ object Icons {
           IconLoader.getDisabledIcon(AllIcons.General.Dropdown))
 
   val gearWithDropdownErrorIcon = LayeredIcon(AllIcons.General.Error, AllIcons.General.Dropdown)
-}
-
-fun SwiftFormatConfigurable.createStoreAsProjectFileCheckBox(): Row.() -> Cell<JBCheckBox> {
-  return {
-    val storeAsFileGearButton = createStoreAsFileGearButton()
-    val storeAsProjectFileCheckBox =
-        checkBox("Store as project file").gap(RightGap.SMALL).applyToComponent {
-          addActionListener {
-            storeAsFileGearButton.isEnabled = isSelected
-
-            if (!isSelected || currentSwiftFormatConfigPath.isBlank()) {
-              currentSwiftFormatConfigPath = project.dotIdeaFolderPath
-            }
-
-            if (isSelected) {
-              manageStorageFileLocation()
-            }
-          }
-        }
-    cell(storeAsFileGearButton).enabledIf(storeAsProjectFileCheckBox.selected)
-
-    storeAsProjectFileCheckBox
-  }
 }
 
 fun SwiftFormatConfigurable.createStoreAsFileGearButton(): ActionButton {
