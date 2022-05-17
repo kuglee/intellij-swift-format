@@ -54,19 +54,20 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
       state.swiftFormatPath = swiftFormatPath
     }
 
-  fun getSwiftFormatConfigFolderPath(project: Project): String =
+  fun getSwiftFormatConfigFolderPath(project: Project): String? =
       if (getErrorIfBadFolderPathForStoringInArbitraryFile(project, state.swiftFormatConfigPath) ==
           null)
           state.swiftFormatConfigPath
       else project.dotIdeaFolderPath
 
-  fun setSwiftFormatConfigFolderPath(newValue: String) {
+  fun setSwiftFormatConfigFolderPath(newValue: String?) {
     state.swiftFormatConfigPath = newValue
   }
 
-  fun getSwiftFormatConfigFilePath(project: Project): String {
+  fun getSwiftFormatConfigFilePath(project: Project): String? {
     val configFolderPath = getSwiftFormatConfigFolderPath(project)
-    return "$configFolderPath/$swiftFormatConfigFilename"
+
+    return if (configFolderPath != null) "$configFolderPath/$swiftFormatConfigFilename" else null
   }
 
   var useCustomConfiguration: Boolean
@@ -92,7 +93,7 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
     var enabled = EnabledState.UNKNOWN
     var useCustomConfiguration = false
     var shouldSaveToProject = false
-    var swiftFormatConfigPath: String = ""
+    var swiftFormatConfigPath: String? = null
   }
 
   companion object {

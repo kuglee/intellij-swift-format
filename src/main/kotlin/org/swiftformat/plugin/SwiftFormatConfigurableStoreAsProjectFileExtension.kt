@@ -104,7 +104,7 @@ fun SwiftFormatConfigurable.popup(
           row {
             configPathTextField(project, pathToErrorMessage, uiDisposable)
                 .bindText(
-                    getter = ::currentSwiftFormatConfigPath,
+                    getter = { currentSwiftFormatConfigPath ?: "" },
                     setter = { currentSwiftFormatConfigPath = it })
                 .label("Store configuration file in:", LabelPosition.TOP)
           }
@@ -203,6 +203,10 @@ fun getErrorIfBadFolderPathForStoringInArbitraryFile(
     project: Project,
     path: @SystemIndependent String?
 ): String? {
+  if (project.isDefault) {
+    return "Default projects have no folders"
+  }
+
   if (project.dotIdeaFolderPath == path) {
     return null
   }

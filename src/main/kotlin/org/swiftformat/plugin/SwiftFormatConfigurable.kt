@@ -57,19 +57,19 @@ class SwiftFormatConfigurable(val project: Project) :
   lateinit var storeAsProjectFileCheckBox: Cell<JBCheckBox>
   private lateinit var useCustomConfigurationCheckBox: Cell<JBCheckBox>
   private val mainPanelInsets = Insets(5, 16, 10, 16)
-  var currentSwiftFormatConfigPath = swiftFormatConfigFolderPath
+  var currentSwiftFormatConfigPath: String? = swiftFormatConfigFolderPath
 
   init {
     Disposer.register(project, this)
   }
 
-  private var swiftFormatConfigFolderPath: String
+  private var swiftFormatConfigFolderPath: String?
     get() = settings.getSwiftFormatConfigFolderPath(project)
     set(newValue) {
       settings.setSwiftFormatConfigFolderPath(newValue)
     }
 
-  private val swiftFormatConfigFilePath: String
+  private val swiftFormatConfigFilePath: String?
     get() = settings.getSwiftFormatConfigFilePath(project)
 
   private fun restoreDefaultConfiguration() {
@@ -454,6 +454,10 @@ class SwiftFormatConfigurable(val project: Project) :
   }
 
   private fun readConfiguration(): Configuration? {
+    if (swiftFormatConfigFilePath.isNullOrBlank()) {
+      return null
+    }
+
     val path = File(swiftFormatConfigFilePath)
 
     return if (path.exists()) {
@@ -469,6 +473,10 @@ class SwiftFormatConfigurable(val project: Project) :
   }
 
   private fun writeConfiguration() {
+    if (swiftFormatConfigFilePath.isNullOrBlank()) {
+      return
+    }
+
     val prettyJson = Json { prettyPrint = true }
 
     val configurationString = prettyJson.encodeToString(configuration)
@@ -498,8 +506,8 @@ object ConfigError {
 
 // Extensions
 
-val Project.dotIdeaFolderPath
-  get() = stateStore.directoryStorePath.toString()
+val Project.dotIdeaFolderPath: String?
+  get() = if (!this.isDefault) stateStore.directoryStorePath.toString() else null
 
 private fun JBTabbedPane.add(title: String, component: JComponent, scrollbar: Boolean = false) {
   this.add(
