@@ -493,7 +493,9 @@ class SwiftFormatConfigurable(val project: Project) :
       this.apply {
         if (project.isDefault) {
           visible(false)
-        } else visibleIf(useCustomConfigurationCheckBox.selected)
+        } else {
+          visibleIf(useCustomConfigurationCheckBox.selected)
+        }
       }
 }
 
