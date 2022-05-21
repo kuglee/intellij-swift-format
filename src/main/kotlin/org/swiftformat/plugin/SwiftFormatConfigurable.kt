@@ -124,8 +124,6 @@ class SwiftFormatConfigurable(val project: Project) :
               .customize(Gaps(right = 0))
               .applyToComponent {
                 addActionListener {
-                  storeAsFileGearButton.isEnabled = isSelected
-
                   if (!isSelected || currentSwiftFormatConfigPath.isNullOrBlank()) {
                     currentSwiftFormatConfigPath = project.dotIdeaFolderPath
                   }
@@ -135,12 +133,12 @@ class SwiftFormatConfigurable(val project: Project) :
                   }
                 }
               }
-              .visibleIf(useCustomConfigurationCheckBox.selected)
               .bindSelected(settings::shouldSaveToProject)
+              .showIfNonDefaultProject()
       cell(storeAsFileGearButton)
-          .visibleIf(useCustomConfigurationCheckBox.selected)
           .enabledIf(storeAsProjectFileCheckBox.selected)
           .customize(Gaps.EMPTY)
+          .showIfNonDefaultProject()
     }
   }
 
@@ -360,6 +358,7 @@ class SwiftFormatConfigurable(val project: Project) :
                               .horizontalAlign(HorizontalAlign.FILL)
                               .verticalAlign(VerticalAlign.FILL)
                               .resizableColumn()
+                              .showIfNonDefaultProject()
                         }
                         .resizableRow()
                     restoreDefaultsPanel =
@@ -488,6 +487,13 @@ class SwiftFormatConfigurable(val project: Project) :
       log.error(ConfigError.writeErrorMessage, e)
     }
   }
+
+  private fun <T : JComponent> Cell<T>.showIfNonDefaultProject(): Cell<T> =
+      this.apply {
+        if (project.isDefault) {
+          visible(false)
+        } else visibleIf(useCustomConfigurationCheckBox.selected)
+      }
 }
 
 private fun String.separateCamelCase() =
