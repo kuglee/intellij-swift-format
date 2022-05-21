@@ -111,6 +111,11 @@ class SwiftFormatConfigurable(val project: Project) :
       useCustomConfigurationCheckBox =
           checkBox("Use custom configuration")
               .bindSelected(settings::useCustomConfiguration)
+              .apply {
+                if (project.isDefault) {
+                  visible(false)
+                }
+              }
               .applyToComponent {
                 addActionListener {
                   if (!isSelected) {
