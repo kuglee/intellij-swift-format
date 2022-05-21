@@ -28,6 +28,7 @@ import com.intellij.openapi.ui.*
 import com.intellij.openapi.util.Disposer
 import com.intellij.project.stateStore
 import com.intellij.ui.components.JBCheckBox
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.dsl.gridLayout.Gaps
@@ -521,8 +522,8 @@ private fun JBTabbedPane.add(title: String, component: JComponent, scrollbar: Bo
       if (scrollbar) {
         panel {
           row {
-                scrollCell(component)
-                    .apply { border = JBEmptyBorder(0) }
+                // using cell with JBScrollPane because scrollCell adds a border
+                cell(component, JBScrollPane(component).apply { border = JBEmptyBorder(0) })
                     .horizontalAlign(HorizontalAlign.FILL)
                     .verticalAlign(VerticalAlign.FILL)
                     .resizableColumn()
