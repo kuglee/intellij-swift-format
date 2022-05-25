@@ -10,6 +10,7 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonContentPolymorphicSerializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
@@ -79,6 +80,22 @@ data class Configuration(
             respectsExistingLineBreaks == defaultConfiguration.respectsExistingLineBreaks) &&
         (tabWidth == null || tabWidth == defaultConfiguration.tabWidth) &&
         isRuleDefault()
+  }
+
+  fun toJson(): String {
+    val prettyJson = Json { prettyPrint = true }
+    val a = prettyJson.encodeToString(this)
+    return a
+  }
+
+  companion object {
+    fun fromJson(json: String): Configuration? {
+      return try {
+        Json.decodeFromString(json)
+      } catch (e: Exception) {
+        null
+      }
+    }
   }
 }
 

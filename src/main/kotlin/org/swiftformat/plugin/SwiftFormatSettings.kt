@@ -20,6 +20,8 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
+import com.intellij.util.xmlb.Converter
+import com.intellij.util.xmlb.annotations.OptionTag
 
 const val swiftFormatConfigFilename = ".swift-format"
 
@@ -54,14 +56,26 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
       state.swiftFormatPath = swiftFormatPath
     }
 
-  fun getSwiftFormatConfigFolderPath(project: Project): String? =
-      if (getErrorIfBadFolderPathForStoringInArbitraryFile(project, state.swiftFormatConfigPath) ==
-          null)
-          state.swiftFormatConfigPath
-      else project.dotIdeaFolderPath
+  fun getSwiftFormatConfigFolderPath(project: Project): String? {
+    when (state.config) {
+      is Config.Project -> {
+        val swiftFormatConfigPath = (state.config as Config.Project).folderPath
+        if (getErrorIfBadFolderPathForStoringInArbitraryFile(project, swiftFormatConfigPath) ==
+            null) {
+          return swiftFormatConfigPath
+        }
+      }
+      is Config.Default -> {
+        return project.dotIdeaFolderPath
+      }
+      null -> return null
+    }
+
+    return null
+  }
 
   fun setSwiftFormatConfigFolderPath(newValue: String?) {
-    state.swiftFormatConfigPath = newValue
+    (state.config as? Config.Project)?.folderPath = newValue
   }
 
   fun getSwiftFormatConfigFilePath(project: Project): String? {
@@ -76,10 +90,10 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
       state.useCustomConfiguration = newValue
     }
 
-  var shouldSaveToProject: Boolean
-    get() = state.shouldSaveToProject
-    set(shouldSaveToProject) {
-      state.shouldSaveToProject = shouldSaveToProject
+  var config: Config?
+    get() = state.config
+    set(newValue) {
+      state.config = newValue
     }
 
   internal enum class EnabledState {
@@ -92,8 +106,7 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
     var swiftFormatPath = ""
     var enabled = EnabledState.UNKNOWN
     var useCustomConfiguration = false
-    var shouldSaveToProject = false
-    var swiftFormatConfigPath: String? = null
+    @OptionTag(converter = ConfigConverter::class) var config: Config? = null
   }
 
   companion object {
@@ -101,4 +114,23 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
       return project.getService(SwiftFormatSettings::class.java)
     }
   }
+}
+
+sealed class Config {
+  data class Default(var configJson: String?) : Config()
+  data class Project(var folderPath: String?) : Config()
+}
+
+class ConfigConverter : Converter<Config?>() {
+  override fun fromString(value: String): Config =
+      if (value.startsWith("{")) {
+        Config.Default(value)
+      } else Config.Project(value)
+
+  override fun toString(value: Config): String =
+      when (value) {
+        is Config.Default -> value.configJson
+        is Config.Project -> value.folderPath
+      }
+          ?: ""
 }

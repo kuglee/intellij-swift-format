@@ -41,7 +41,6 @@ import java.awt.Insets
 import java.io.File
 import javax.swing.*
 import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.swiftformat.plugin.utils.SwiftSuggest
 
@@ -72,6 +71,16 @@ class SwiftFormatConfigurable(val project: Project) :
 
   private val swiftFormatConfigFilePath: String?
     get() = settings.getSwiftFormatConfigFilePath(project)
+
+  private var shouldSaveToProject: Boolean
+    get() {
+      return settings.config is Config.Project
+    }
+    set(shouldSaveToProject) {
+      settings.config =
+          if (shouldSaveToProject) Config.Project(currentSwiftFormatConfigPath ?: "")
+          else Config.Default(configuration.toJson())
+    }
 
   private fun restoreDefaultConfiguration() {
     val oldConfiguration = configuration.copy()
@@ -139,7 +148,7 @@ class SwiftFormatConfigurable(val project: Project) :
                   }
                 }
               }
-              .bindSelected(settings::shouldSaveToProject)
+              .bindSelected(::shouldSaveToProject)
               .showIfNonDefaultProject()
       cell(storeAsFileGearButton)
           .enabledIf(storeAsProjectFileCheckBox.selected)
@@ -458,7 +467,13 @@ class SwiftFormatConfigurable(val project: Project) :
     }
   }
 
-  private fun readConfiguration(): Configuration? {
+  private fun readConfiguration(): Configuration? =
+      if (!shouldSaveToProject) readConfigurationFromSettings() else readConfigurationFromJson()
+
+  private fun readConfigurationFromSettings(): Configuration? =
+      (settings.config as? Config.Default)?.configJson?.let { Configuration.fromJson(it) }
+
+  private fun readConfigurationFromJson(): Configuration? {
     if (swiftFormatConfigFilePath.isNullOrBlank()) {
       return null
     }
@@ -477,18 +492,20 @@ class SwiftFormatConfigurable(val project: Project) :
     }
   }
 
-  private fun writeConfiguration() {
+  private fun writeConfiguration() =
+      if (!shouldSaveToProject) writeConfigurationToSettings() else writeConfigurationToJson()
+
+  private fun writeConfigurationToSettings() {
+    settings.config = Config.Default(configuration.toJson())
+  }
+
+  private fun writeConfigurationToJson() {
     if (swiftFormatConfigFilePath.isNullOrBlank()) {
       return
     }
 
-    val prettyJson = Json { prettyPrint = true }
-
-    val configurationString = prettyJson.encodeToString(configuration)
-    val configFilePath = swiftFormatConfigFilePath
-
     try {
-      File(configFilePath).writeText(configurationString)
+      File(swiftFormatConfigFilePath).writeText(configuration.toJson())
     } catch (e: Exception) {
       log.error(ConfigError.writeErrorMessage, e)
     }
