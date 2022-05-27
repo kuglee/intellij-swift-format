@@ -120,11 +120,6 @@ class SwiftFormatConfigurable(val project: Project) :
       useCustomConfigurationCheckBox =
           checkBox("Use custom configuration")
               .bindSelected(settings::useCustomConfiguration)
-              .apply {
-                if (project.isDefault) {
-                  visible(false)
-                }
-              }
               .applyToComponent {
                 addActionListener {
                   if (!isSelected) {
@@ -373,7 +368,6 @@ class SwiftFormatConfigurable(val project: Project) :
                               .horizontalAlign(HorizontalAlign.FILL)
                               .verticalAlign(VerticalAlign.FILL)
                               .resizableColumn()
-                              .showIfNonDefaultProject()
                         }
                         .resizableRow()
                     restoreDefaultsPanel =
