@@ -410,7 +410,7 @@ class SwiftFormatConfigurable(val project: Project) :
                         .horizontalAlign(HorizontalAlign.FILL)
                         .customize(Gaps(left = mainPanelInsets.left, right = mainPanelInsets.right))
                   }
-                  .bottomGap(BottomGap.MEDIUM)
+                  .bottomGap(BottomGap.SMALL)
               row {
                     cell(configurationTabbedPane)
                         .horizontalAlign(HorizontalAlign.FILL)
