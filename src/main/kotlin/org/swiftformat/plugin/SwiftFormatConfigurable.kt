@@ -19,10 +19,14 @@
 
 package org.swiftformat.plugin
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.Configurable
+import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.*
 import com.intellij.openapi.util.Disposer
@@ -30,16 +34,22 @@ import com.intellij.project.stateStore
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
+import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.dsl.gridLayout.Gaps
 import com.intellij.ui.dsl.gridLayout.HorizontalAlign
 import com.intellij.ui.dsl.gridLayout.VerticalAlign
+import com.intellij.ui.layout.ComponentPredicate
+import com.intellij.ui.layout.enteredTextSatisfies
+import com.intellij.ui.layout.not
+import com.intellij.ui.layout.selectedValueIs
 import com.intellij.util.ui.*
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.Insets
 import java.io.File
 import javax.swing.*
+import kotlin.reflect.KClass
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.swiftformat.plugin.utils.SwiftSuggest
@@ -53,7 +63,6 @@ class SwiftFormatConfigurable(val project: Project) :
   private var configuration = readConfiguration() ?: Configuration()
   private lateinit var mainPanel: DialogPanel
   private lateinit var configurationTabbedPane: JBTabbedPane
-  private lateinit var restoreDefaultsPanel: Panel
   lateinit var storeAsProjectFileCheckBox: Cell<JBCheckBox>
   private lateinit var useCustomConfigurationCheckBox: Cell<JBCheckBox>
   private val mainPanelInsets = Insets(5, 16, 10, 16)
@@ -154,175 +163,215 @@ class SwiftFormatConfigurable(val project: Project) :
 
   private fun tabsAndIndentsPanel(): DialogPanel = panel {
     row {
-      checkBox("Use tab character")
-          .bindSelected(
-              getter = {
-                val indentation =
-                    configuration.indentation ?: Configuration.defaultConfiguration.indentation!!
-                indentation is Indentation.Tabs
-              },
-              setter = {
-                if (it) {
-                  configuration.indentation =
-                      Indentation.Tabs(Configuration.defaultConfiguration.indentation!!.count)
-                } else {
-                  configuration.indentation =
-                      Indentation.Spaces(Configuration.defaultConfiguration.indentation!!.count)
-                }
-              })
+      revertableCell(
+          checkBox("Use tab character")
+              .bindSelected(
+                  getter = {
+                    val indentation =
+                        configuration.indentation
+                            ?: Configuration.defaultConfiguration.indentation!!
+                    indentation is Indentation.Tabs
+                  },
+                  setter = {
+                    if (it) {
+                      configuration.indentation =
+                          Indentation.Tabs(Configuration.defaultConfiguration.indentation!!.count)
+                    } else {
+                      configuration.indentation =
+                          Indentation.Spaces(Configuration.defaultConfiguration.indentation!!.count)
+                    }
+                  }),
+          Configuration.defaultConfiguration.indentation!! is Indentation.Tabs,
+      )
     }
     row("Tab size:") {
-      intTextField(0..10000)
-          .columns(1)
-          .bindIntText(
-              getter = { configuration.tabWidth ?: Configuration.defaultConfiguration.tabWidth!! },
-              setter = { configuration.tabWidth = it })
+      revertableCell(
+          intTextField(0..10000)
+              .columns(1)
+              .bindIntText(
+                  getter = {
+                    configuration.tabWidth ?: Configuration.defaultConfiguration.tabWidth!!
+                  },
+                  setter = { configuration.tabWidth = it }),
+          Configuration.defaultConfiguration.tabWidth!!,
+      )
     }
     row("Indent:") {
-      intTextField(0..10000)
-          .columns(1)
-          .bindIntText(
-              getter = {
-                configuration.indentation?.count
-                    ?: Configuration.defaultConfiguration.indentation!!.count
-              },
-              setter = {
-                if (configuration.indentation != null) {
-                  configuration.indentation!!.count = it
-                } else {
-                  configuration.indentation =
-                      Configuration.defaultConfiguration.indentation!!.copy(it)
-                }
-              })
+      revertableCell(
+          intTextField(0..10000)
+              .columns(1)
+              .bindIntText(
+                  getter = {
+                    configuration.indentation?.count
+                        ?: Configuration.defaultConfiguration.indentation!!.count
+                  },
+                  setter = {
+                    if (configuration.indentation != null) {
+                      configuration.indentation!!.count = it
+                    } else {
+                      configuration.indentation =
+                          Configuration.defaultConfiguration.indentation!!.copy(it)
+                    }
+                  }),
+          Configuration.defaultConfiguration.indentation!!.count)
     }
     indent {
       row {
-        checkBox("Indent conditional compilation blocks")
-            .bindSelected(
-                getter = {
-                  configuration.indentConditionalCompilationBlocks
-                      ?: Configuration.defaultConfiguration.indentConditionalCompilationBlocks!!
-                },
-                setter = { configuration.indentConditionalCompilationBlocks = it })
+        revertableCell(
+            checkBox("Indent conditional compilation blocks")
+                .bindSelected(
+                    getter = {
+                      configuration.indentConditionalCompilationBlocks
+                          ?: Configuration.defaultConfiguration.indentConditionalCompilationBlocks!!
+                    },
+                    setter = { configuration.indentConditionalCompilationBlocks = it }),
+            Configuration.defaultConfiguration.indentConditionalCompilationBlocks!!)
       }
       row {
-        checkBox("Indent switch case labels")
-            .bindSelected(
-                getter = {
-                  configuration.indentSwitchCaseLabels
-                      ?: Configuration.defaultConfiguration.indentSwitchCaseLabels!!
-                },
-                setter = { configuration.indentSwitchCaseLabels = it })
+        revertableCell(
+            checkBox("Indent switch case labels")
+                .bindSelected(
+                    getter = {
+                      configuration.indentSwitchCaseLabels
+                          ?: Configuration.defaultConfiguration.indentSwitchCaseLabels!!
+                    },
+                    setter = { configuration.indentSwitchCaseLabels = it }),
+            Configuration.defaultConfiguration.indentSwitchCaseLabels!!)
       }
     }
     row("Line length:") {
-      intTextField(0..10000)
-          .columns(1)
-          .bindIntText(
-              getter = {
-                configuration.lineLength ?: Configuration.defaultConfiguration.lineLength!!
-              },
-              setter = { configuration.lineLength = it })
+      revertableCell(
+          intTextField(0..10000)
+              .columns(1)
+              .bindIntText(
+                  getter = {
+                    configuration.lineLength ?: Configuration.defaultConfiguration.lineLength!!
+                  },
+                  setter = { configuration.lineLength = it }),
+          Configuration.defaultConfiguration.lineLength!!)
     }
   }
 
   private fun lineBreaksPanel(): DialogPanel = panel {
     row {
-      checkBox("Respects existing line breaks")
-          .bindSelected(
-              getter = {
-                configuration.respectsExistingLineBreaks
-                    ?: Configuration.defaultConfiguration.respectsExistingLineBreaks!!
-              },
-              setter = { configuration.respectsExistingLineBreaks = it })
+      revertableCell(
+          checkBox("Respects existing line breaks")
+              .bindSelected(
+                  getter = {
+                    configuration.respectsExistingLineBreaks
+                        ?: Configuration.defaultConfiguration.respectsExistingLineBreaks!!
+                  },
+                  setter = { configuration.respectsExistingLineBreaks = it }),
+          Configuration.defaultConfiguration.respectsExistingLineBreaks!!)
     }
     row {
-      checkBox("Line break before control flow keywords")
-          .bindSelected(
-              getter = {
-                configuration.lineBreakBeforeControlFlowKeywords
-                    ?: Configuration.defaultConfiguration.lineBreakBeforeControlFlowKeywords!!
-              },
-              setter = { configuration.lineBreakBeforeControlFlowKeywords = it })
+      revertableCell(
+          checkBox("Line break before control flow keywords")
+              .bindSelected(
+                  getter = {
+                    configuration.lineBreakBeforeControlFlowKeywords
+                        ?: Configuration.defaultConfiguration.lineBreakBeforeControlFlowKeywords!!
+                  },
+                  setter = { configuration.lineBreakBeforeControlFlowKeywords = it }),
+          Configuration.defaultConfiguration.lineBreakBeforeControlFlowKeywords!!)
     }
     row {
-      checkBox("Line break before each argument")
-          .bindSelected(
-              getter = {
-                configuration.lineBreakBeforeEachArgument
-                    ?: Configuration.defaultConfiguration.lineBreakBeforeEachArgument!!
-              },
-              setter = { configuration.lineBreakBeforeEachArgument = it })
+      revertableCell(
+          checkBox("Line break before each argument")
+              .bindSelected(
+                  getter = {
+                    configuration.lineBreakBeforeEachArgument
+                        ?: Configuration.defaultConfiguration.lineBreakBeforeEachArgument!!
+                  },
+                  setter = { configuration.lineBreakBeforeEachArgument = it }),
+          Configuration.defaultConfiguration.lineBreakBeforeEachArgument!!)
     }
     row {
-      checkBox("Line break before each generic requirement")
-          .bindSelected(
-              getter = {
-                configuration.lineBreakBeforeEachGenericRequirement
-                    ?: Configuration.defaultConfiguration.lineBreakBeforeEachGenericRequirement!!
-              },
-              setter = { configuration.lineBreakBeforeEachGenericRequirement = it })
+      revertableCell(
+          checkBox("Line break before each generic requirement")
+              .bindSelected(
+                  getter = {
+                    configuration.lineBreakBeforeEachGenericRequirement
+                        ?: Configuration.defaultConfiguration
+                            .lineBreakBeforeEachGenericRequirement!!
+                  },
+                  setter = { configuration.lineBreakBeforeEachGenericRequirement = it }),
+          Configuration.defaultConfiguration.lineBreakBeforeEachGenericRequirement!!)
     }
     row {
-      checkBox("Prioritize keeping function output together")
-          .bindSelected(
-              getter = {
-                configuration.prioritizeKeepingFunctionOutputTogether
-                    ?: Configuration.defaultConfiguration.prioritizeKeepingFunctionOutputTogether!!
-              },
-              setter = { configuration.prioritizeKeepingFunctionOutputTogether = it })
+      revertableCell(
+          checkBox("Prioritize keeping function output together")
+              .bindSelected(
+                  getter = {
+                    configuration.prioritizeKeepingFunctionOutputTogether
+                        ?: Configuration.defaultConfiguration
+                            .prioritizeKeepingFunctionOutputTogether!!
+                  },
+                  setter = { configuration.prioritizeKeepingFunctionOutputTogether = it }),
+          Configuration.defaultConfiguration.prioritizeKeepingFunctionOutputTogether!!)
     }
     row {
-      checkBox("Line break around multiline expression chain components")
-          .bindSelected(
-              getter = {
-                configuration.lineBreakAroundMultilineExpressionChainComponents
-                    ?: Configuration.defaultConfiguration
-                        .lineBreakAroundMultilineExpressionChainComponents!!
-              },
-              setter = { configuration.lineBreakAroundMultilineExpressionChainComponents = it })
+      revertableCell(
+          checkBox("Line break around multiline expression chain components")
+              .bindSelected(
+                  getter = {
+                    configuration.lineBreakAroundMultilineExpressionChainComponents
+                        ?: Configuration.defaultConfiguration
+                            .lineBreakAroundMultilineExpressionChainComponents!!
+                  },
+                  setter = {
+                    configuration.lineBreakAroundMultilineExpressionChainComponents = it
+                  }),
+          Configuration.defaultConfiguration.lineBreakAroundMultilineExpressionChainComponents!!)
     }
     row("Maximum blank lines:") {
-      intTextField(0..10000)
-          .columns(1)
-          .bindIntText(
-              getter = {
-                configuration.maximumBlankLines
-                    ?: Configuration.defaultConfiguration.maximumBlankLines!!
-              },
-              setter = { configuration.maximumBlankLines = it })
+      revertableCell(
+          intTextField(0..10000)
+              .columns(1)
+              .bindIntText(
+                  getter = {
+                    configuration.maximumBlankLines
+                        ?: Configuration.defaultConfiguration.maximumBlankLines!!
+                  },
+                  setter = { configuration.maximumBlankLines = it }),
+          Configuration.defaultConfiguration.maximumBlankLines!!)
     }
   }
 
   private fun otherPanel(): DialogPanel = panel {
     row("File scoped declaration privacy:") {
-      comboBox(FileScopedDeclarationPrivacy.AccessLevel.values().asList())
-          .bindItem(
-              getter = {
-                configuration.fileScopedDeclarationPrivacy?.accessLevel
-                    ?: Configuration.defaultConfiguration.fileScopedDeclarationPrivacy!!.accessLevel
-              },
-              setter = {
-                if (it != null) {
-                  configuration.fileScopedDeclarationPrivacy = FileScopedDeclarationPrivacy(it)
-                }
-              })
+      revertableCell(
+          comboBox(FileScopedDeclarationPrivacy.AccessLevel.values().asList())
+              .bindItem(
+                  getter = {
+                    configuration.fileScopedDeclarationPrivacy?.accessLevel
+                        ?: Configuration.defaultConfiguration.fileScopedDeclarationPrivacy!!
+                            .accessLevel
+                  },
+                  setter = {
+                    if (it != null) {
+                      configuration.fileScopedDeclarationPrivacy = FileScopedDeclarationPrivacy(it)
+                    }
+                  }),
+          Configuration.defaultConfiguration.fileScopedDeclarationPrivacy!!.accessLevel)
     }
   }
 
   private fun rulesPanel(): DialogPanel = panel {
     for (key in RuleRegistry.rules.keys.filter { it in RuleRegistry.formatterRulesKeys }) {
       row {
-        checkBox(key.separateCamelCase().sentenceCase())
-            .bindSelected(
-                getter = {
-                  configuration.rules?.getOrDefault(key, RuleRegistry.defaultRules[key])
-                      ?: RuleRegistry.defaultRules.getOrDefault(key, false) ?: false
-                },
-                setter = {
-                  configuration.rules = configuration.rules ?: RuleRegistry.rules.toMutableMap()
-                  configuration.rules!![key] = it
-                })
+        revertableCell(
+            checkBox(key.separateCamelCase().sentenceCase())
+                .bindSelected(
+                    getter = {
+                      configuration.rules?.getOrDefault(key, RuleRegistry.defaultRules[key])
+                          ?: RuleRegistry.defaultRules.getOrDefault(key, false) ?: false
+                    },
+                    setter = {
+                      configuration.rules = configuration.rules ?: RuleRegistry.rules.toMutableMap()
+                      configuration.rules!![key] = it
+                    }),
+            RuleRegistry.defaultRules.getOrDefault(key, false) ?: false)
       }
     }
   }
@@ -362,26 +411,13 @@ class SwiftFormatConfigurable(val project: Project) :
                         .customize(Gaps(left = mainPanelInsets.left, right = mainPanelInsets.right))
                   }
                   .bottomGap(BottomGap.MEDIUM)
-              rowsRange {
-                    row {
-                          cell(configurationTabbedPane)
-                              .horizontalAlign(HorizontalAlign.FILL)
-                              .verticalAlign(VerticalAlign.FILL)
-                              .resizableColumn()
-                        }
-                        .resizableRow()
-                    restoreDefaultsPanel =
-                        panel {
-                              separator()
-                              row {
-                                link("Restore defaults") { restoreDefaultConfiguration() }
-                                    .bold()
-                                    .customize(
-                                        Gaps(6, mainPanelInsets.left, 6, mainPanelInsets.right))
-                              }
-                            }
-                            .visible(shouldShowRestoreDefaultsButton(configuration))
+              row {
+                    cell(configurationTabbedPane)
+                        .horizontalAlign(HorizontalAlign.FILL)
+                        .verticalAlign(VerticalAlign.FILL)
+                        .resizableColumn()
                   }
+                  .resizableRow()
                   .visibleIf(useCustomConfigurationCheckBox.selected)
             }
             .also {
@@ -411,10 +447,6 @@ class SwiftFormatConfigurable(val project: Project) :
     writeConfiguration()
   }
 
-  private fun applyConfiguration() {
-    configurationTabbedPane.applyRecursively()
-  }
-
   private fun resetConfiguration() {
     configurationTabbedPane.resetRecursively()
   }
@@ -423,28 +455,8 @@ class SwiftFormatConfigurable(val project: Project) :
     swiftFormatConfigFolderPath = currentSwiftFormatConfigPath
   }
 
-  override fun isModified(): Boolean {
-    val isModified = mainPanel.isModifiedRecursive() || swiftFormatConfigPathIsModified()
-
-    restoreDefaultsPanel.visible(shouldShowRestoreDefaultsButton(getCurrentUIConfiguration()))
-
-    return isModified
-  }
-
-  private fun getCurrentUIConfiguration(): Configuration {
-    val oldConfiguration = configuration.deepCopy()
-    applyConfiguration()
-
-    val currentUIConfiguration = configuration
-
-    configuration = oldConfiguration
-
-    return currentUIConfiguration
-  }
-
-  // visibleIf doesn't override visible, so isSelected needs to be checked
-  private fun shouldShowRestoreDefaultsButton(configuration: Configuration): Boolean =
-      useCustomConfigurationCheckBox.component.isSelected && !configuration.isDefault()
+  override fun isModified(): Boolean =
+      mainPanel.isModifiedRecursive() || swiftFormatConfigPathIsModified()
 
   @Suppress("DialogTitleCapitalization") override fun getDisplayName() = "swift-format Settings"
 
@@ -597,5 +609,86 @@ private fun Container.applyRecursively() {
 }
 
 private fun Container.isModifiedRecursive(): Boolean =
-    (this is DialogPanel && isModified()) ||
+    ((this is DialogPanel) && isModified()) ||
         components.any { (it as? Container)?.isModifiedRecursive() ?: false }
+
+sealed class ComponentType<T : JComponent> {
+  abstract fun getClass(): KClass<T>
+
+  object CheckBox : ComponentType<JBCheckBox>() {
+    override fun getClass() = JBCheckBox::class
+  }
+
+  object TextField : ComponentType<JBTextField>() {
+    override fun getClass() = JBTextField::class
+  }
+
+  object ComboBox : ComponentType<com.intellij.openapi.ui.ComboBox<*>>() {
+    override fun getClass() = com.intellij.openapi.ui.ComboBox::class
+  }
+}
+
+@Suppress("unchecked_cast")
+fun <T : JComponent, S> Row.revertableCellBase(
+    type: ComponentType<T>,
+    cell: Cell<T>,
+    defaultValue: S
+) {
+  val action: AnAction =
+      object : DumbAwareAction("Reset Setting", null, AllIcons.Diff.Revert) {
+        override fun actionPerformed(e: AnActionEvent) {
+          when (type) {
+            ComponentType.CheckBox -> {
+              val checkBox = cell as Cell<JBCheckBox>
+              if (checkBox.component.isSelected != defaultValue) {
+                checkBox.component.isSelected = defaultValue as Boolean
+              }
+            }
+            ComponentType.TextField -> {
+              val textField = cell as Cell<JBTextField>
+              if (textField.component.text != defaultValue) {
+                textField.component.text = defaultValue.toString()
+              }
+            }
+            ComponentType.ComboBox -> {
+              val comboBox = cell as Cell<ComboBox<*>>
+              if (comboBox.component.selectedItem != defaultValue) {
+                comboBox.component.selectedItem = defaultValue
+              }
+            }
+          }
+        }
+      }
+
+  val isDefault: ComponentPredicate =
+      when (type) {
+        ComponentType.CheckBox -> {
+          val checkBox = cell as Cell<JBCheckBox>
+          if (defaultValue as Boolean) checkBox.selected else checkBox.selected.not()
+        }
+        ComponentType.TextField -> {
+          val textField = cell as Cell<JBTextField>
+          textField.component.enteredTextSatisfies { it == defaultValue.toString() }
+        }
+        ComponentType.ComboBox -> {
+          val comboBox = cell as Cell<ComboBox<Any>>
+          comboBox.component.selectedValueIs(defaultValue)
+        }
+      }
+
+  cell.gap(RightGap.SMALL)
+  actionButton(action).visibleIf(isDefault.not()).customize(Gaps.EMPTY)
+}
+
+fun Row.revertableCell(cell: Cell<JBCheckBox>, defaultValue: Boolean) {
+  revertableCellBase(ComponentType.CheckBox, cell, defaultValue)
+}
+
+fun <T> Row.revertableCell(cell: Cell<JBTextField>, defaultValue: T) {
+  revertableCellBase(ComponentType.TextField, cell, defaultValue)
+}
+
+@JvmName("revertableCellComboBox")
+fun <T> Row.revertableCell(cell: Cell<ComboBox<T>>, defaultValue: T) {
+  revertableCellBase(ComponentType.ComboBox, cell, defaultValue)
+}
