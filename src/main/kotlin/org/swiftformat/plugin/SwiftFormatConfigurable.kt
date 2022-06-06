@@ -503,6 +503,10 @@ class SwiftFormatConfigurable(val project: Project) :
 
   private fun writeConfigurationToSettings() {
     settings.config = Config.Default(configuration.toJson())
+
+    if (!project.isDefault) {
+      writeConfigurationToJson()
+    }
   }
 
   private fun writeConfigurationToJson() {

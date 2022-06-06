@@ -22,12 +22,16 @@ import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.Converter
 import com.intellij.util.xmlb.annotations.OptionTag
+import java.io.File
+import java.nio.file.Path
+import java.security.SecureRandom
 
 const val swiftFormatConfigFilename = ".swift-format"
 
 @State(name = "SwiftFormatSettings", storages = [Storage("swift-format.xml")])
 internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSettings.State> {
   private var state = State()
+  private var uniqueId = java.lang.Long.toUnsignedString(SecureRandom().nextLong())
 
   override fun getState(): State {
     return state
@@ -35,6 +39,13 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
 
   override fun loadState(state: State) {
     this.state = state
+
+    if (config is Config.Default) {
+      val path = getSwiftFormatConfigFilePath(null)
+      if (!path.isNullOrBlank()) {
+        (config as Config.Default).configJson?.let { File(path).writeText(it) }
+      }
+    }
   }
 
   var isEnabled: Boolean
@@ -56,32 +67,32 @@ internal class SwiftFormatSettings : PersistentStateComponent<SwiftFormatSetting
       state.swiftFormatPath = swiftFormatPath
     }
 
-  fun getSwiftFormatConfigFolderPath(project: Project): String? {
-    when (state.config) {
-      is Config.Project -> {
-        val swiftFormatConfigPath = (state.config as Config.Project).folderPath
-        if (getErrorIfBadFolderPathForStoringInArbitraryFile(project, swiftFormatConfigPath) ==
-            null) {
-          return swiftFormatConfigPath
-        }
-      }
-      is Config.Default -> {
-        return project.dotIdeaFolderPath
-      }
-      null -> return null
-    }
-
-    return null
+  fun getSwiftFormatConfigFolderPath(project: Project?): String? {
+    val path = getSwiftFormatConfigFilePath(project)
+    return if (path != null) Path.of(path).parent?.toString() else null
   }
 
   fun setSwiftFormatConfigFolderPath(newValue: String?) {
-    (state.config as? Config.Project)?.folderPath = newValue
+    (config as? Config.Project)?.folderPath = newValue
   }
 
-  fun getSwiftFormatConfigFilePath(project: Project): String? {
-    val configFolderPath = getSwiftFormatConfigFolderPath(project)
-
-    return if (configFolderPath != null) "$configFolderPath/$swiftFormatConfigFilename" else null
+  fun getSwiftFormatConfigFilePath(project: Project?): String? {
+    return when (config) {
+      is Config.Project -> {
+        val swiftFormatConfigPath = (config as Config.Project).folderPath
+        if (project != null &&
+            getErrorIfBadFolderPathForStoringInArbitraryFile(project, swiftFormatConfigPath) ==
+                null) {
+          "$swiftFormatConfigPath/$swiftFormatConfigFilename"
+        } else {
+          null
+        }
+      }
+      is Config.Default -> {
+        "${System.getProperty("java.io.tmpdir")}/$swiftFormatConfigFilename$uniqueId"
+      }
+      null -> null
+    }
   }
 
   var useCustomConfiguration: Boolean

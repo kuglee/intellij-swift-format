@@ -13,11 +13,8 @@ import com.intellij.execution.process.ProcessOutput
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.util.io.exists
-import java.io.File
 import java.nio.file.Path
-import org.swiftformat.plugin.Config
 import org.swiftformat.plugin.SwiftFormatSettings
-import org.swiftformat.plugin.swiftFormatConfigFilename
 import org.swiftformat.plugin.swiftFormatTool
 import org.swiftformat.plugin.utils.openapiext.GeneralCommandLine
 import org.swiftformat.plugin.utils.openapiext.execute
@@ -25,8 +22,6 @@ import org.swiftformat.plugin.utils.openapiext.isNotSuccess
 
 /** Interact with external `swift-format` process. */
 class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
-  private var tempConfigFile: File? = null
-
   private fun getFormattedText(text: String, project: Project): ProcessOutput {
     val arguments =
         mutableListOf(
@@ -38,22 +33,12 @@ class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
     val settings = SwiftFormatSettings.getInstance(project)
 
     if (settings.useCustomConfiguration) {
-      when (settings.config) {
-        is Config.Project -> {
-          val configFilePath = Path.of(settings.getSwiftFormatConfigFilePath(project))
-          if (configFilePath.exists()) {
-            arguments.addAll(listOf("--configuration", configFilePath.toString()))
-          }
+      val configFilePathString = settings.getSwiftFormatConfigFilePath(project)
+      if (configFilePathString != null) {
+        val configFilePath = Path.of(settings.getSwiftFormatConfigFilePath(project))
+        if (configFilePath.exists()) {
+          arguments.addAll(listOf("--configuration", configFilePath.toString()))
         }
-        is Config.Default -> {
-          val configJson = (settings.config as Config.Default).configJson
-          if (configJson != null) {
-            tempConfigFile =
-                File.createTempFile(swiftFormatConfigFilename, null).apply { writeText(configJson) }
-            arguments.addAll(listOf("--configuration", tempConfigFile!!.path))
-          }
-        }
-        else -> {}
       }
     }
 
@@ -87,8 +72,6 @@ class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
           }
         }
 
-    deleteTempConfigFile()
-
     if (processOutput.isNotSuccess)
         return SwiftFormatResult.UnknownFailure(
             "Process output exit code was non-zero", cause = null)
@@ -96,11 +79,5 @@ class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
     val formattedText = processOutput.stdout
 
     return SwiftFormatResult.Success(formattedText)
-  }
-
-  private fun deleteTempConfigFile() {
-    if (tempConfigFile != null && tempConfigFile!!.exists()) {
-      tempConfigFile?.delete()
-    }
   }
 }
