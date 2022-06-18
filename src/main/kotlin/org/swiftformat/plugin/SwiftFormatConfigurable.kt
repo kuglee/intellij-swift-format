@@ -300,18 +300,6 @@ class SwiftFormatConfigurable(val project: Project) :
     }
     row {
       revertableCell(
-          checkBox("Prioritize keeping function output together")
-              .bindSelected(
-                  getter = {
-                    configuration.prioritizeKeepingFunctionOutputTogether
-                        ?: Configuration.defaultConfiguration
-                            .prioritizeKeepingFunctionOutputTogether!!
-                  },
-                  setter = { configuration.prioritizeKeepingFunctionOutputTogether = it }),
-          Configuration.defaultConfiguration.prioritizeKeepingFunctionOutputTogether!!)
-    }
-    row {
-      revertableCell(
           checkBox("Line break around multiline expression chain components")
               .bindSelected(
                   getter = {
@@ -323,6 +311,18 @@ class SwiftFormatConfigurable(val project: Project) :
                     configuration.lineBreakAroundMultilineExpressionChainComponents = it
                   }),
           Configuration.defaultConfiguration.lineBreakAroundMultilineExpressionChainComponents!!)
+    }
+    row {
+      revertableCell(
+          checkBox("Prioritize keeping function output together")
+              .bindSelected(
+                  getter = {
+                    configuration.prioritizeKeepingFunctionOutputTogether
+                        ?: Configuration.defaultConfiguration
+                            .prioritizeKeepingFunctionOutputTogether!!
+                  },
+                  setter = { configuration.prioritizeKeepingFunctionOutputTogether = it }),
+          Configuration.defaultConfiguration.prioritizeKeepingFunctionOutputTogether!!)
     }
     row("Maximum blank lines:") {
       revertableCell(
