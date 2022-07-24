@@ -16,14 +16,10 @@
  */
 package org.swiftformat.plugin
 
-import com.google.common.collect.ImmutableList
-import com.intellij.codeInsight.hint.HintManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Document
-import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.util.TextRange
-import com.intellij.openapi.util.registry.Registry
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
@@ -44,7 +40,7 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
   @Throws(IncorrectOperationException::class)
   override fun reformatText(file: PsiFile, startOffset: Int, endOffset: Int) {
     if (overrideFormatterForFile(file)) {
-      formatInternal(file, ImmutableList.of(TextRange(startOffset, endOffset)))
+      formatInternal(file)
     } else {
       super.reformatText(file, startOffset, endOffset)
     }
@@ -53,7 +49,7 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
   @Throws(IncorrectOperationException::class)
   override fun reformatText(file: PsiFile, ranges: Collection<TextRange>) {
     if (overrideFormatterForFile(file)) {
-      formatInternal(file, ranges)
+      formatInternal(file)
     } else {
       super.reformatText(file, ranges)
     }
@@ -72,7 +68,7 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
   @Throws(IncorrectOperationException::class)
   override fun reformatTextWithContext(file: PsiFile, ranges: Collection<TextRange>) {
     if (overrideFormatterForFile(file)) {
-      formatInternal(file, ranges)
+      formatInternal(file)
     } else {
       super.reformatTextWithContext(file, ranges)
     }
@@ -90,7 +86,7 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
     // to serve as the return value.
     val file = if (element is PsiFile) element else null
     return if (file != null && canChangeWhiteSpacesOnly && overrideFormatterForFile(file)) {
-      formatInternal(file, ImmutableList.of(TextRange(startOffset, endOffset)))
+      formatInternal(file)
       file
     } else {
       super.reformatRange(element, startOffset, endOffset, canChangeWhiteSpacesOnly)
@@ -103,7 +99,7 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
         SwiftFormatSettings.getInstance(project).isEnabled)
   }
 
-  private fun formatInternal(file: PsiFile, ranges: Collection<TextRange>) {
+  private fun formatInternal(file: PsiFile) {
     ApplicationManager.getApplication().assertWriteAccessAllowed()
     val documentManager = PsiDocumentManager.getInstance(project)
     documentManager.commitAllDocuments()
@@ -114,7 +110,7 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
     if (documentManager.isDocumentBlockedByPsi(document)) {
       return
     }
-    format(document, ranges)
+    format(document)
   }
 
   /**
@@ -123,14 +119,7 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
    * Overriding methods will need to modify the document with the result of the external formatter
    * (usually using [.performReplacements]).
    */
-  private fun format(document: Document, ranges: Collection<TextRange>) {
-    if (shouldShowNotificationAfterReformat() &&
-        ranges.size == 1 &&
-        document.text.length != ranges.first().length) {
-      showInformationHint("No lines changed: range formatting is not supported by swift-format")
-      return
-    }
-
+  private fun format(document: Document) {
     val settings = SwiftFormatSettings.getInstance(project)
     val formatter = SwiftFormatCLI(Path.of(settings.swiftFormatPath))
 
@@ -152,15 +141,4 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
       PsiDocumentManager.getInstance(project).commitDocument(document)
     }
   }
-
-  private fun showInformationHint(message: String, position: Short = HintManager.UNDER) {
-    val editor = FileEditorManager.getInstance(project).selectedTextEditor
-    if (editor != null) {
-      val hintManager = HintManager.getInstance()
-      hintManager.showInformationHint(editor, message, position)
-    }
-  }
-
-  private fun shouldShowNotificationAfterReformat() =
-      Registry.get("editor.show.notification.after.reformat").asBoolean()
 }
