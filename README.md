@@ -26,6 +26,7 @@ and https://github.com/kuglee/intellij-swift-format/tree/master/license
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 ---
-Plugin based on the [IntelliJ Platform Plugin Template][template].
+Plugin based on the [IntelliJ Platform Plugin Template][template], Keith Lazuka's [intellij-elm](https://github.com/klazuka/intellij-elm) and Google
+Inc.'s [google-java-format](https://github.com/google/google-java-format) plugins.
 
 [template]: https://github.com/JetBrains/intellij-platform-plugin-template
