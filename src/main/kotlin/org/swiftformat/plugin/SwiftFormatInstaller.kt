@@ -19,11 +19,12 @@ package org.swiftformat.plugin
 
 import com.google.common.base.Preconditions
 import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.openapi.extensions.PluginDescriptor
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManagerListener
 import com.intellij.psi.codeStyle.CodeStyleManager
-import com.intellij.serviceContainer.ComponentManagerImpl
+import kotlin.reflect.jvm.kotlinFunction
 
 /**
  * A component that replaces the default IntelliJ [CodeStyleManager] with one that formats via
@@ -45,11 +46,21 @@ internal class SwiftFormatInstaller : ProjectManagerListener {
     }
 
     private fun setManager(project: Project, newManager: CodeStyleManager) {
-      val platformComponentManager = project as ComponentManagerImpl
+      val componentManagerImplClass =
+          (Class.forName("com.intellij.serviceContainer.ComponentManagerImpl"))
+      val registerServiceInstanceMethod =
+          componentManagerImplClass
+              .getMethod(
+                  "registerServiceInstance",
+                  Class::class.java,
+                  Object::class.java,
+                  PluginDescriptor::class.java)
+              .kotlinFunction
+      val platformComponentManager = componentManagerImplClass.cast(project)
       val plugin = PluginManagerCore.getPlugin(PluginId.getId("org.swiftformat.plugin"))
       Preconditions.checkState(plugin != null, "Couldn't locate our own PluginDescriptor.")
-      platformComponentManager.registerServiceInstance(
-          CodeStyleManager::class.java, newManager, plugin!!)
+      registerServiceInstanceMethod!!.call(
+          platformComponentManager, CodeStyleManager::class.java, newManager, plugin!!)
     }
   }
 }

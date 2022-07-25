@@ -1,6 +1,8 @@
 # intellij-swift-format Changelog
 
 ## [Unreleased]
+### Changed
+- Refactor installer
 
 ## [1.0.0]
 ### Added
