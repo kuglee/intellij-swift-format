@@ -123,7 +123,7 @@ internal class SwiftFormatCodeStyleManager(original: CodeStyleManager) :
     val settings = SwiftFormatSettings.getInstance(project)
     val formatter = SwiftFormatCLI(Path.of(settings.swiftFormatPath))
 
-    performReplacements(document, FormatterUtil.getReplacements(formatter, document.text, project))
+    performReplacements(document, FormatterUtil.getReplacements(formatter, document, project))
   }
 
   private fun performReplacements(document: Document, replacements: Map<TextRange, String>) {

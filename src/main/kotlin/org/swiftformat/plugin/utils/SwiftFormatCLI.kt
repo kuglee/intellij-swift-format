@@ -10,6 +10,8 @@ package org.swiftformat.plugin.utils
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.process.ProcessNotCreatedException
 import com.intellij.execution.process.ProcessOutput
+import com.intellij.openapi.editor.Document
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.util.io.exists
@@ -22,7 +24,9 @@ import org.swiftformat.plugin.utils.openapiext.isNotSuccess
 
 /** Interact with external `swift-format` process. */
 class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
-  private fun getFormattedText(text: String, project: Project): ProcessOutput {
+  private fun getFormattedText(document: Document, project: Project): ProcessOutput {
+    val filePath = FileDocumentManager.getInstance().getFile(document)!!.path
+
     val arguments =
         mutableListOf(
             "format",
@@ -37,15 +41,16 @@ class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
       if (configFilePathString != null) {
         val configFilePath = Path.of(settings.getSwiftFormatConfigFilePath(project))
         if (configFilePath.exists()) {
-          arguments.addAll(listOf("--configuration", configFilePath.toString()))
+          arguments.addAll(listOf("--configuration", filePath))
         }
       }
     }
 
     return GeneralCommandLine(swiftFormatExecutablePath)
         .withWorkDirectory(project.basePath)
-        .withParameters(arguments)
-        .execute(swiftFormatTool, project, stdIn = text)
+        .withParameters("stdin", "--stdinpath", filePath)
+//        .withParameters(arguments)
+        .execute(swiftFormatTool, project, stdIn = document.text)
   }
 
   sealed class SwiftFormatResult(val msg: String, val cause: Throwable? = null) {
@@ -55,12 +60,12 @@ class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
         SwiftFormatResult(msg ?: "Something went wrong running swift-format", cause)
   }
 
-  fun formatText(project: Project, text: String): SwiftFormatResult {
+  fun formatText(project: Project, document: Document): SwiftFormatResult {
     val processOutput =
         try {
           ProgressManager.getInstance()
               .runProcessWithProgressSynchronously<ProcessOutput, ExecutionException>(
-                  { getFormattedText(text, project) },
+                  { getFormattedText(document, project) },
                   "Running swift-format on current file...",
                   true,
                   null)

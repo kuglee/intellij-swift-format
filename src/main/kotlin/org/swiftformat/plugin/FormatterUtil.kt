@@ -2,6 +2,7 @@ package org.swiftformat.plugin
 
 import com.google.common.collect.ImmutableMap
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
@@ -10,12 +11,12 @@ import org.swiftformat.plugin.utils.SwiftFormatCLI
 internal object FormatterUtil {
   fun getReplacements(
       formatter: SwiftFormatCLI,
-      text: String,
+      document: Document,
       project: Project
   ): Map<TextRange, String> {
-    return when (val result = formatter.formatText(project, text)) {
+    return when (val result = formatter.formatText(project, document)) {
       is SwiftFormatCLI.SwiftFormatResult.Success -> {
-        ImmutableMap.of(TextRange.allOf(text), result.msg)
+        ImmutableMap.of(TextRange.allOf(document.text), result.msg)
       }
       is SwiftFormatCLI.SwiftFormatResult.FailedToStart -> {
         val configureAction =
