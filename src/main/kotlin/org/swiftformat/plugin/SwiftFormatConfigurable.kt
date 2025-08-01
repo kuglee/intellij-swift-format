@@ -32,7 +32,6 @@ import com.intellij.openapi.ui.*
 import com.intellij.openapi.util.Disposer
 import com.intellij.project.stateStore
 import com.intellij.ui.components.JBCheckBox
-import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.*
@@ -556,13 +555,12 @@ private fun JBTabbedPane.add(title: String, component: JComponent, scrollbar: Bo
       if (scrollbar) {
         panel {
           row {
-                // using cell with JBScrollPane because scrollCell adds a border
-                cell(component, JBScrollPane(component).apply { border = JBEmptyBorder(0) })
-                    .horizontalAlign(HorizontalAlign.FILL)
-                    .verticalAlign(VerticalAlign.FILL)
-                    .resizableColumn()
-              }
-              .resizableRow()
+            scrollCell(component.apply { border = JBEmptyBorder(0) })
+                .horizontalAlign(HorizontalAlign.FILL)
+                .verticalAlign(VerticalAlign.FILL)
+                .resizableColumn()
+          }
+          .resizableRow()
         }
       } else {
         panel { row { cell(component).horizontalAlign(HorizontalAlign.FILL).resizableColumn() } }
@@ -681,7 +679,7 @@ fun <T : JComponent, S> Row.revertableCellBase(
       }
 
   cell.gap(RightGap.SMALL)
-  actionButton(action).visibleIf(isDefault.not()).customize(Gaps.EMPTY)
+//  actionButton(action).visibleIf(isDefault.not()).customize(Gaps.EMPTY)
 }
 
 fun Row.revertableCell(cell: Cell<JBCheckBox>, defaultValue: Boolean) {
