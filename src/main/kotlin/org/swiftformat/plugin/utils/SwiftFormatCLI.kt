@@ -43,6 +43,7 @@ class SwiftFormatCLI(private val swiftFormatExecutablePath: Path) {
     }
 
     return GeneralCommandLine(swiftFormatExecutablePath)
+        .withWorkDirectory(project.basePath)
         .withParameters(arguments)
         .execute(swiftFormatTool, project, stdIn = text)
   }
